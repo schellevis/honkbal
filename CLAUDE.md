@@ -236,7 +236,7 @@ Controleer ook (enrichment): `honkbal/config/teams.py::TEAM_DIVISIONS` bij divis
 - `node_modules/`, `.venv/`, `__pycache__/`, `.pytest_cache/`, `.ruff_cache/`
 - `test-results/`, `playwright-report/`
 
-## Playoff-odds scrapen (FanGraphs) — ontwerp
+## Playoff-odds scrapen — FanGraphs primair, Baseball-Reference fallback
 
 Het odds-signaal in enrichment leest een **genormaliseerd** bestand; de scraper is een aparte
 adapter die dit bestand schrijft. Die scheiding is bewust: zo breekt een bronwijziging alleen de
@@ -248,6 +248,7 @@ adapter, niet de enrichment-regels.
 {
   "fetched_at": "2026-06-24T19:00:00+02:00",
   "season": 2026,
+  "source": "fangraphs",
   "teams": [
     {"team": "dodgers", "make_playoffs": 0.98, "win_division": 0.72, "win_world_series": 0.18}
   ]
@@ -257,30 +258,42 @@ adapter, niet de enrichment-regels.
 `team` is een honkbal-slug (door `normalize_team`); kansen zijn `0..1`. `load_playoff_odds`/
 `parse_playoff_odds` accepteren dit al (ook `%`-strings en `0..100`).
 
-**Bron — FanGraphs playoff-odds-API (JSON, geen HTML-scrape nodig):**
+**Bronketen:**
 
-- Endpoint: `https://www.fangraphs.com/api/playoff-odds/odds`
-- Queryparams (te bevestigen): `projmode=combo` (projectiemodus), `standingsType=div`,
-  optioneel `season=<jaar>`, `dateDelta=` (leeg = actueel).
-- Respons: JSON-array van team-objecten. **De exacte veldnamen voor make-playoffs / win-division /
-  win-WS moeten live worden geverifieerd** (FanGraphs hernoemt sleutels weleens) en daarna in een
-  `_FG_FIELD`-mapping vastgelegd, met een teamnaam→slug-mapping zoals `fetch/standings.py` al heeft.
+- Primair: FanGraphs playoff-odds-API
+  `https://www.fangraphs.com/api/playoff-odds/odds?projmode=combo&standingsType=div&season=<jaar>&dateDelta=`.
+  Browser-achtige `User-Agent` vereist; kale clients kunnen 403/Cloudflare krijgen.
+- Fallback: Baseball-Reference
+  `https://www.baseball-reference.com/leagues/majors/<jaar>-playoff-odds.shtml`.
+  Dit is een HTML-tabel, geen JSON.
+
+**Live gevalideerd op 2026-06-24:**
+
+- FanGraphs: team-identiteit `TeamName`, playoff-kans `MakePlayoffs`, divisietitel `WinDiv`,
+  World Series `WinWS` (`_FG_FIELD` in `honkbal/fetch/playoff_odds.py`). De publieke pagina toont
+  dezelfde kolommen als `Team`, `Win Div`, `Make Playoffs`, `Win WS`; de lokale client kreeg 403,
+  dus de parser blijft defensief voor casing/alias-wijzigingen.
+- Baseball-Reference: pagina `/leagues/majors/<jaar>-playoff-odds.shtml`; kolommen
+  `Team`, `Division Winner`, `Make Playoffs` (of bij schema-varianten afgeleid uit `Division Winner`
+  + `Wild Card`) en `World Series` (`_BR_FIELD`).
 
 **Implementatieplan (adapter `fetch_playoff_odds(clock, data_dir, client)`):**
 
-1. GET via `fetch/http.py::build_client` met een browser-achtige `User-Agent` (FanGraphs weert kale
-   clients); respecteer de bestaande throttle, geen retry.
-2. Map ruwe velden → genormaliseerde teams; sla het bestand atomisch op (zie standings als template).
+1. GET via `fetch/http.py::build_client` met een browser-achtige `User-Agent`; respecteer de
+   bestaande throttle/één-call-per-bron discipline, geen retry.
+2. Probeer FanGraphs eerst; bij HTTP-fout, lege payload of schemafout probeer Baseball-Reference.
+3. Map ruwe velden → genormaliseerde teams; schrijf alleen een niet-lege, gevalideerde set naar
+   `.data/playoff_odds.json`, inclusief `source`.
 3. **Faal zacht** (zelfde patroon als standings): bij HTTP-/parsefout een waarschuwing en de
    bestaande cache behouden; nooit de build blokkeren.
 4. Wire in `cli_fetch.py` naast `fetch_standings`, óók alleen vóór `season.windows.ps`.
-5. Test met een **gepinde, minimale** FanGraphs-JSON-fixture (publieke, gestripte payload — zie
+5. Test met **gepinde, minimale** fixtures voor beide bronnen (publieke, gestripte payloads — zie
    "Publieke repo-hygiëne"); geen live call in CI.
 
-**Aandachtspunten:** FanGraphs-ToS/robots respecteren (lage frequentie, één call per build, caching);
-de feed kan tussen seizoenen van vorm wijzigen → behandel de veld-mapping als jaarlijks-onderhoud-
-item (SPEC §11.4). Alternatieve bron als FanGraphs dichtgaat: MLB-StatsAPI heeft geen kant-en-klare
-playoff-odds, dus dan is FanGraphs of Baseball-Reference de praktische keuze.
+**Aandachtspunten:** FanGraphs- en Baseball-Reference-ToS/robots respecteren (lage frequentie, max.
+één call per bron per build, caching); de bronvelden kunnen tussen seizoenen wijzigen → behandel de
+veld-mapping als jaarlijks-onderhouditem (SPEC §11.4). MLB-StatsAPI heeft geen kant-en-klare
+playoff-odds.
 
 ## Referenties
 

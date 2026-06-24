@@ -556,14 +556,27 @@ blokkeert de build nooit. Ontbreken standen/odds, dan dragen alleen de beschikba
 Acceptatie: het wedstrijdmodel en de renderfunctie accepteren een gevulde `enrichment` zonder de
 overige rendering te veranderen (tonen als badge/sorteersleutel volgt later).
 
-### 11.4 Playoff-odds-bron (FanGraphs) — genormaliseerd contract
+### 11.4 Playoff-odds-bronnen — genormaliseerd contract
 De stabiele grens is het **genormaliseerde** bestand `.data/playoff_odds.json`:
-`{"teams": [{"team": <slug>, "make_playoffs": 0..1, "win_division": 0..1, "win_world_series": 0..1}]}`.
-`load_playoff_odds` leest uitsluitend dit formaat; een bron-adapter zet ruwe data om. De beoogde
-bron is FanGraphs playoff-odds (`https://www.fangraphs.com/api/playoff-odds/odds`, JSON per team).
-De ruwe FanGraphs-veldnamen moeten **live gevalideerd** worden (zoals `config/feeds.py`): zodra de
-mapping bevestigd is, schrijft de adapter het genormaliseerde bestand en breekt een bronwijziging
-alleen de adapter, niet de enrichment. Zie ook de scrape-overweging in `CLAUDE.md`.
+`{"source": "fangraphs"|"baseball-reference", "teams": [{"team": <slug>, "make_playoffs": 0..1, "win_division": 0..1, "win_world_series": 0..1}]}`.
+`load_playoff_odds` leest uitsluitend dit formaat; bron-adapters zetten ruwe data om. De primaire
+bron is FanGraphs playoff-odds
+(`https://www.fangraphs.com/api/playoff-odds/odds?projmode=combo&standingsType=div&season=<jaar>&dateDelta=`,
+JSON per team). Als FanGraphs faalt door HTTP-blokkade, lege payload of gewijzigd schema, valt de
+fetcher terug op Baseball-Reference
+(`https://www.baseball-reference.com/leagues/majors/<jaar>-playoff-odds.shtml`, HTML-tabel).
+
+Live gevalideerd op 2026-06-24:
+
+- FanGraphs publieke odds-kolommen: team-identiteit `TeamName`, playoff-kans `MakePlayoffs`,
+  divisietitel `WinDiv`, World Series `WinWS`.
+- Baseball-Reference publieke odds-kolommen: team-identiteit `Team`, playoff-kans `Make Playoffs`
+  (of afleidbaar uit `Division Winner` + `Wild Card`), divisietitel `Division Winner`,
+  World Series `World Series`.
+
+Beide adapters falen zacht: alleen een niet-lege, gevalideerde teamset schrijft
+`.data/playoff_odds.json`; anders blijft de bestaande cache intact en draait enrichment zonder nieuw
+odds-signaal.
 
 ---
 
