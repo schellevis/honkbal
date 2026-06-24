@@ -70,6 +70,10 @@ def test_enrichment_does_not_break_render():
     games = [_g(date(2026, 6, 21), 20, "Red Sox", "Yankees", enrichment=enr)]
     ctx = _ctx(games)
     assert ctx.total_rows == 1
+    row = ctx.days[0].rows[0]
+    assert row.enrichment_score == 0.9
+    assert row.enrichment_label == "must-watch"
+    assert row.enrichment_reasons == ("rivalry",)
 
 
 # --- Postseason footnote tests (SPEC §5.6) ---
