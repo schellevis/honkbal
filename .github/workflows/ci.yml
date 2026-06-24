@@ -1,0 +1,42 @@
+name: ci (full gate)
+
+# Volledige test-gate op elke push naar main en elke pull request — dít is waar code
+# verandert, dus hier draait de complete suite (lint + pytest + node:test + Playwright).
+# De deploy-workflows (build.yml/rebuild.yml) draaien alleen een lichte ruff+pytest-smoke,
+# want een cron-deploy gebruikt dezelfde commit met alleen verse data.
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install uv
+        uses: astral-sh/setup-uv@v8.2.0
+        with:
+          python-version: "3.12"
+      - name: Sync (frozen)
+        run: uv sync --frozen
+      - name: Lint
+        run: uv run ruff check .
+      - name: Python acceptatietests (incl. config-validatie-gate)
+        run: uv run pytest -q
+      - name: Setup Node 22
+        uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+      - name: Install Node dependencies
+        run: npm ci
+      - name: Frontend unit-tests (node:test)
+        run: npm run test:unit
+      - name: Playwright browsers
+        run: npx playwright install --with-deps chromium
+      - name: Frontend DOM/offline-tests (Playwright, headless)
+        run: npm run test:e2e

@@ -131,23 +131,23 @@ frontend/e2e/                  # Playwright (DOM, offline, SW)
 .github/workflows/
   build.yml                    # volledige build + fetch + publicatie (cron + handmatig)
   rebuild.yml                  # render zonder fetch (handmatig, vereist data-cache)
-  ci-python.yml                # PR-gate: lint + pytest (geen publicatie)
+  ci.yml                       # PR-gate: volledige suite (ruff + pytest + node:test + Playwright)
 ```
 
 ## CI/CD
 
 ### `build.yml` — volledig (cron + `workflow_dispatch`)
 
-1. **gate-job**: `uv sync --frozen` -> `ruff check` -> `pytest -q` -> node:test -> Playwright headless. Blokkeert de build-job.
+1. **gate-job** (lichte deploy-gate): `uv sync --frozen` -> `ruff check` -> `pytest -q`. Geen node:test/Playwright — die draaien op push/PR in `ci.yml`; een cron-deploy gebruikt dezelfde commit met alleen verse data, en de render-stap valideert config en faalt luid. Blokkeert de build-job.
 2. **build-job**: data-cache herstellen -> `honkbal fetch` -> `version.txt` schrijven -> `honkbal render` -> data-cache opslaan -> publicatie-artifact.
 
 ### `rebuild.yml` — geen fetch (handmatig)
 
-Zelfde gate-job. Build-job herstelt de data-cache (faalt luid als die ontbreekt) -> `honkbal render` -> publicatie-artifact. Bedoeld voor layout-/template-fixes zonder nieuwe data.
+Zelfde lichte gate-job. Build-job herstelt de data-cache (faalt luid als die ontbreekt) -> `honkbal render` -> publicatie-artifact. Bedoeld voor layout-/template-fixes zonder nieuwe data.
 
-### `ci-python.yml` — PR-gate
+### `ci.yml` — volledige PR-gate
 
-Draait op push naar `main` en bij pull requests: `uv sync --frozen` -> `ruff check` -> `pytest -q`. Geen publicatie.
+Draait op push naar `main` en bij pull requests: `uv sync --frozen` -> `ruff check` -> `pytest -q` -> node:test -> Playwright headless. Dít is het handhavingspunt voor frontend-regressies (code verandert bij PR/push, niet bij een cron-deploy). Geen publicatie.
 
 **`docs/` en `version.txt` worden door CI gegenereerd en staan in `.gitignore`. Nooit handmatig committen.**
 

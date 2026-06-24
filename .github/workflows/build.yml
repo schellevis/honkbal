@@ -33,18 +33,10 @@ jobs:
         run: uv run ruff check .
       - name: Python acceptatietests (incl. config-validatie-gate)
         run: uv run pytest -q
-      - name: Setup Node 22
-        uses: actions/setup-node@v5
-        with:
-          node-version: "22"
-      - name: Install Node dependencies
-        run: npm ci
-      - name: Frontend unit-tests (node:test)
-        run: npm run test:unit
-      - name: Playwright browsers
-        run: npx playwright install --with-deps chromium
-      - name: Frontend DOM/offline-tests (Playwright, headless)
-        run: npm run test:e2e
+      # Lichte deploy-gate: alleen ruff + pytest. De volledige suite (node:test +
+      # Playwright) draait op push/PR in ci.yml — code verandert daar, niet bij een
+      # cron-deploy (zelfde commit, alleen verse data). De render-stap valideert config
+      # en faalt luid, dus data-/datumrisico is hier al afgedekt.
 
   build:
     runs-on: ubuntu-latest

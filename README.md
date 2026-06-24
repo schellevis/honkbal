@@ -51,7 +51,7 @@ frontend/          Vanilla JS (ES-modules), CSS, statische assets (logos, favico
 tests/             Python-tests: unit, integration, golden snapshots
 frontend/test/     node:test frontend unit-tests
 frontend/e2e/      Playwright DOM/offline/SW-tests
-.github/workflows/ build.yml (cron+publicatie), rebuild.yml (no-fetch), ci-python.yml (PR-gate)
+.github/workflows/ build.yml (cron+publicatie), rebuild.yml (no-fetch), ci.yml (PR-gate)
 SPEC.md            Normatief contract
 ```
 
@@ -59,9 +59,9 @@ SPEC.md            Normatief contract
 
 De site wordt uitsluitend via GitHub Actions gebouwd en gepubliceerd. `docs/` en `version.txt` worden door de workflows gegenereerd en staan in `.gitignore` — niet handmatig committen.
 
-- **`build.yml`**: draait op schema (meerdere keren per dag tijdens het seizoen) en handmatig. Voert lint + alle tests uit als gate, haalt daarna data op, rendert en publiceert de statische output.
+- **`build.yml`**: draait op schema (meerdere keren per dag tijdens het seizoen) en handmatig. Lichte gate (ruff + pytest), haalt daarna data op, rendert en publiceert de statische output.
 - **`rebuild.yml`**: handmatig — rendert opnieuw zonder een nieuwe datafetch (vereist dat er een data-cache in Actions aanwezig is).
-- **`ci-python.yml`**: PR-gate — lint + Python-tests bij elke push naar `main` en bij pull requests.
+- **`ci.yml`**: PR-gate — volledige suite (ruff + pytest + node:test + Playwright) bij elke push naar `main` en bij pull requests. Hier worden frontend-regressies gevangen.
 
 ## Bijdragen
 
