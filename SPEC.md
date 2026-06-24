@@ -52,9 +52,9 @@ statische output.
 - **tvgids.nl-tak** (`tvgidsnl.php`, `tvgidsnl.json`): in legacy al volledig dode code.
 - Backend-/publicatiescripts en externe-serviceconfig buiten deze generator.
 
-**Toekomstig (niet in deze herbouw, [NEW]-haak):** AI-inschatting van "interessantheid" per
-wedstrijd. Het genormaliseerde wedstrijdmodel (§3.1) krijgt een expliciet optioneel
-verrijkingsveld zodat dit later als losse build-stap kan worden ingeplugd (zie §11).
+**Uitgelichte wedstrijden ([NEW], geïmplementeerd):** regelgebaseerde "interessantheid" per
+wedstrijd. Het genormaliseerde wedstrijdmodel (§3.1) heeft een optioneel verrijkingsveld dat een
+losse build-stap (`honkbal/enrichment.py`) vult; tonen in de renderlaag volgt later (zie §11).
 
 Tijdzones:
 - MLB-schedule bron-parsing: `America/New_York` → omgerekend naar `Europe/Amsterdam`. **[LEGACY]**
@@ -109,7 +109,7 @@ Game:
   is_tbd:      bool
   source_seq:  int          # [NEW] bron-volgnummer (fetch-/CSV-volgorde); tiebreaker bij een
                             #       identieke dedup-sleutel — zie dedup-regel hieronder
-  enrichment:  Enrichment | None   # [NEW] haak voor toekomstige AI-score; standaard None
+  enrichment:  Enrichment | None   # [NEW] regelgebaseerde interessantheidsscore (§11); None onder drempel/postseason
 ScheduleMeta:
   modified:  datetime       # nieuwste Last-Modified uit bron-headers
   refreshed: datetime       # moment van fetch
@@ -523,13 +523,47 @@ ontbrekende/ongeldige velden. Controleer standaardtab, datumkoppen, `debug.html`
 
 ---
 
-## 11. Toekomstige uitbreiding: AI-interessantheid [NEW]
-`Game.enrichment` is de toetsbare haak: een optioneel veld dat een latere build-stap vult
-(bv. `{score: float, label: str, reasons: [str]}`). Renderlaag toont het als badge en/of extra
-sorteersleutel. Zonder verrijkingsstap blijft het veld `None` en heeft het geen zichtbaar effect.
-Acceptatie:
-het wedstrijdmodel en de renderfunctie accepteren een gevulde `enrichment` zonder de overige
-rendering te veranderen.
+## 11. Uitgelichte wedstrijden: regelgebaseerde interessantheid [NEW]
+`Game.enrichment` is een optioneel veld (`{score: float, label: str, reasons: tuple[str]}`) dat
+een aparte build-stap (`honkbal/enrichment.py`) vult met een **regelgebaseerde** interessantheids-
+score. Het was oorspronkelijk een lege toekomsthaak; vanaf de "uitgelicht-berekening" is het
+geïmplementeerd (geen AI/ML — deterministische regels op publieke signalen).
+
+### 11.1 Pijplijn
+1. **Fetch** (alleen vóór `season.windows.ps`): `honkbal/fetch/standings.py` haalt de MLB-StatsAPI-
+   standen op en cachet genormaliseerd naar `.data/standings.json`. `honkbal/fetch/playoff_odds.py`
+   leest optioneel `.data/playoff_odds.json` (genormaliseerde playoff-kansen; bron-scraper zie §11.4).
+2. **Score** (`enrich_games` → `score_game`): elke reguliere-seizoenwedstrijd krijgt een score 0..100.
+   Postseason wordt **overgeslagen** (`clock.now() >= season.windows.ps`) — daar zijn al expliciete
+   fase-labels en is elke wedstrijd inherent belangrijk.
+3. **Context**: `render/context.py` exposeert `enrichment_score/label/reasons` op `RowContext`.
+
+### 11.2 Signalen (opgeteld, geclampt 0..100, drempel 18)
+- **Rivalry** (`config/rivalries.py`, tier 1..3) → `tier × 8`.
+- **Zelfde league** (+4) / **zelfde divisie** (+6, `config/teams.py::TEAM_DIVISIONS`).
+- **Teamkwaliteit** (winning %): hoge én gelijkwaardige teams scoren hoger (cap 18).
+- **Standings-druk**: nabijheid tot een race (`gamesBack`/`wildCardGamesBack` ≤ 8) en beide top-3 in
+  dezelfde divisie (cap 24).
+- **Playoff-odds-spanning**: kans dicht bij 50% en gelijke kansen tussen beide teams (cap 30).
+- **Context-bonus**: weekend (+3), gunstige tijd 19–22u AMS (+3). **TBD** −6.
+
+Labels: `topwedstrijd` (score ≥ 55) · `rivalry` · `playoffrace` · anders `uitgelicht`.
+Onder de drempel (18) → `enrichment = None`.
+
+### 11.3 Robuustheid
+Standings-fetch faalt **zacht** (waarschuwing; valt terug op bestaande cache of basisregels) en
+blokkeert de build nooit. Ontbreken standen/odds, dan dragen alleen de beschikbare signalen bij.
+Acceptatie: het wedstrijdmodel en de renderfunctie accepteren een gevulde `enrichment` zonder de
+overige rendering te veranderen (tonen als badge/sorteersleutel volgt later).
+
+### 11.4 Playoff-odds-bron (FanGraphs) — genormaliseerd contract
+De stabiele grens is het **genormaliseerde** bestand `.data/playoff_odds.json`:
+`{"teams": [{"team": <slug>, "make_playoffs": 0..1, "win_division": 0..1, "win_world_series": 0..1}]}`.
+`load_playoff_odds` leest uitsluitend dit formaat; een bron-adapter zet ruwe data om. De beoogde
+bron is FanGraphs playoff-odds (`https://www.fangraphs.com/api/playoff-odds/odds`, JSON per team).
+De ruwe FanGraphs-veldnamen moeten **live gevalideerd** worden (zoals `config/feeds.py`): zodra de
+mapping bevestigd is, schrijft de adapter het genormaliseerde bestand en breekt een bronwijziging
+alleen de adapter, niet de enrichment. Zie ook de scrape-overweging in `CLAUDE.md`.
 
 ---
 

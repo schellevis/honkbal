@@ -10,11 +10,12 @@ Honkbal.net is een Python/uv static-site generator die MLB-wedstrijden in Nederl
 
 ### Build-time pipeline
 
-1. **Fetch** (`uv run honkbal fetch`): haalt de MLB-ticketingfeed op per team-ID (mapping in `honkbal/config/feeds.py`); schrijft gecachte JSON naar `.data/`. Na `season.windows.ps` ook ESPN-postseason-API.
+1. **Fetch** (`uv run honkbal fetch`): haalt de MLB-ticketingfeed op per team-ID (mapping in `honkbal/config/feeds.py`); schrijft gecachte JSON naar `.data/`. Vóór `season.windows.ps` ook MLB-StatsAPI-standen (`fetch/standings.py` → `.data/standings.json`, voor enrichment, faalt zacht). Na `season.windows.ps` ook ESPN-postseason-API.
 2. **Parse**: `honkbal/parse/schedule.py` zet CSV om naar een lijst van getypte `Game`-objecten (NY→Amsterdam tijdzone-conversie; TBD-afhandeling; allowlist; dedup); `honkbal/parse/espn_postseason.py` levert `PostseasonData`.
-3. **Render** (`uv run honkbal render`): `honkbal/render/pages.py` bouwt Jinja2-context via `render/context.py`, rendert alle pagina's naar `docs/` met autoescape aan. De eerste 250 wedstrijden staan inline in de HTML; de rest schrijft `render/tail.py` als HTML-fragmentblokken naar `<pagina>.tail.json` (SPEC §5.9). Daarna kopieert de CLI statische assets vanuit `frontend/` naar `docs/`.
-4. **Config-validatie**: `honkbal/season.py` valideert het actieve seizoensblok (Pydantic + `@model_validator`). Een ongeldige datum of ontbrekend verplicht veld → `ConfigError` → de build faalt **luid vóór publicatie**.
-5. **`version.txt`**: in CI geschreven door de workflow (`${GITHUB_SHA::12}-${GITHUB_RUN_NUMBER}`); bij lokale builds valt de CLI terug op de mtime van `style.css`. Niet handmatig committen.
+3. **Enrich** (alleen reguliere seizoen): `honkbal/enrichment.py::enrich_games` kent elke wedstrijd een regelgebaseerde interessantheidsscore toe (`Enrichment{score,label,reasons}`) op basis van rivalry (`config/rivalries.py`), divisie/league (`config/teams.py`), standen (`.data/standings.json`) en optionele playoff-odds (`.data/playoff_odds.json`). Postseason wordt overgeslagen (`clock.now() >= season.windows.ps`). Zie SPEC §11.
+4. **Render** (`uv run honkbal render`): `honkbal/render/pages.py` bouwt Jinja2-context via `render/context.py`, rendert alle pagina's naar `docs/` met autoescape aan. De eerste 250 wedstrijden staan inline in de HTML; de rest schrijft `render/tail.py` als HTML-fragmentblokken naar `<pagina>.tail.json` (SPEC §5.9). Daarna kopieert de CLI statische assets vanuit `frontend/` naar `docs/`. `cmd_render` draait stap 3 (enrich) vlak vóór het bouwen van de context; `enrichment_*` zit op `RowContext` maar wordt **nog niet getoond** in templates.
+5. **Config-validatie**: `honkbal/season.py` valideert het actieve seizoensblok (Pydantic + `@model_validator`). Een ongeldige datum of ontbrekend verplicht veld → `ConfigError` → de build faalt **luid vóór publicatie**.
+6. **`version.txt`**: in CI geschreven door de workflow (`${GITHUB_SHA::12}-${GITHUB_RUN_NUMBER}`); bij lokale builds valt de CLI terug op de mtime van `style.css`. Niet handmatig committen.
 
 ### Browser-side runtime
 
@@ -80,14 +81,18 @@ honkbal/
   clock.py                     # Clock protocol, SystemClock, FrozenClock
   season.py                    # select_active_season, load_windows, ConfigError (Pydantic-validatie)
   models.py                    # Game, ScheduleMeta, PostseasonGame, PostseasonData, Enrichment
+  enrichment.py                # enrich_games/score_game: regelgebaseerde interessantheid (SPEC §11)
   config/
     seasons.py                 # RAW_SEASONS: seizoensblokken per jaar
     feeds.py                   # TEAM_FEEDS: team_id <-> team mapping (30 MLB-teams + all-star)
-    teams.py                   # teams_nl, teams_al, slugs, abbreviations, allowlist
+    teams.py                   # teams_nl, teams_al, slugs, abbreviations, allowlist, TEAM_DIVISIONS/division_of
+    rivalries.py               # handmatige rivalry-tiers (1..3) per teampaar (jaarlijks onderhoud)
     toggles.py                 # SHOW_GAMES=250, LOAD_MORE_BATCH=250, ESPNCAP=3000 etc.
     calendar_nl.py             # Nederlandse dag- en maandnamen
   fetch/
     schedule.py                # MLB ticketing-CSV ophalen per team-feed
+    standings.py               # MLB-StatsAPI-standen -> .data/standings.json (enrichment-signaal)
+    playoff_odds.py            # genormaliseerde playoff-odds lezen uit .data/playoff_odds.json (bron-adapter: zie SPEC §11.4)
     espn_postseason.py         # ESPN-API ophalen -> cache in .data/
     discover_feeds.py          # Eenmalig diagnostisch: range 105..161 -> team_id-mapping
     http.py                    # httpx-client met throttle (geen retry; drempel + last-known-good vangt fouten)
@@ -206,6 +211,8 @@ Verplichte velden: `reg`, `showfrom`, `einde`, `ps`, `wc`, `ds`, `cs`, `ws`, `ne
 
 Controleer daarna: default-tab op de frontpage, datumkoppen in `debug.html`, output van `docs/debug.html`.
 
+Controleer ook (enrichment): `honkbal/config/teams.py::TEAM_DIVISIONS` bij divisiewijzigingen en `honkbal/config/rivalries.py` voor nieuwe/vervallen rivalries. Hervalideer de FanGraphs-odds-veldnamen (SPEC §11.4) als de odds-adapter actief is.
+
 ## Bekende valkuilen
 
 - **Kale `datetime.now()` in domeincode is verboden.** Gebruik altijd `clock.now()` — anders zijn tests niet deterministisch en is `--now` zinloos.
@@ -217,6 +224,9 @@ Controleer daarna: default-tab op de frontpage, datumkoppen in `debug.html`, out
 - **`rebuild.yml` faalt luid** als er geen data-cache in Actions bestaat. Draai eerst `build.yml`.
 - **`HONKBAL_NO_FETCH=1`** slaat fetch over en behoudt `.data/` ongewijzigd — handig bij lokale render-only iteraties.
 - **`next_year` wordt legacy berekend** (voor de rollover, SPEC §4.3) — bewuste eigenaarsbeslissing, geen bug.
+- **Enrichment faalt nooit de build.** Standings-fetch (`fetch/standings.py`) en odds-load (`fetch/playoff_odds.py`) falen zacht: ontbreken ze, dan dragen alleen de overige signalen bij en blijft `enrichment` evt. `None`. Enrichment draait **alleen vóór `season.windows.ps`**; in de postseason wordt het overgeslagen.
+- **`config/rivalries.py` + `TEAM_DIVISIONS` zijn handmatig.** Divisie-indeling en rivalry-tiers staan hardcoded; controleer ze jaarlijks (her-/promotie-divisies, nieuwe rivalries) — zie "Jaarlijks onderhoud".
+- **Playoff-odds-bron is nog niet bekabeld.** `load_playoff_odds` leest alleen `.data/playoff_odds.json` (genormaliseerd). Zolang geen adapter dat bestand schrijft, draagt het odds-signaal niets bij — enrichment werkt dan op rivalry/divisie/standen. FanGraphs-scrape-ontwerp: zie SPEC §11.4 en "Playoff-odds scrapen" hieronder.
 
 ## Wat je niet moet committen
 
@@ -225,6 +235,52 @@ Controleer daarna: default-tab op de frontpage, datumkoppen in `debug.html`, out
 - `.data/` (fetch-cache; CI beheert via actions/cache)
 - `node_modules/`, `.venv/`, `__pycache__/`, `.pytest_cache/`, `.ruff_cache/`
 - `test-results/`, `playwright-report/`
+
+## Playoff-odds scrapen (FanGraphs) — ontwerp
+
+Het odds-signaal in enrichment leest een **genormaliseerd** bestand; de scraper is een aparte
+adapter die dit bestand schrijft. Die scheiding is bewust: zo breekt een bronwijziging alleen de
+adapter, niet de enrichment-regels.
+
+**Stabiel contract — `.data/playoff_odds.json`:**
+
+```json
+{
+  "fetched_at": "2026-06-24T19:00:00+02:00",
+  "season": 2026,
+  "teams": [
+    {"team": "dodgers", "make_playoffs": 0.98, "win_division": 0.72, "win_world_series": 0.18}
+  ]
+}
+```
+
+`team` is een honkbal-slug (door `normalize_team`); kansen zijn `0..1`. `load_playoff_odds`/
+`parse_playoff_odds` accepteren dit al (ook `%`-strings en `0..100`).
+
+**Bron — FanGraphs playoff-odds-API (JSON, geen HTML-scrape nodig):**
+
+- Endpoint: `https://www.fangraphs.com/api/playoff-odds/odds`
+- Queryparams (te bevestigen): `projmode=combo` (projectiemodus), `standingsType=div`,
+  optioneel `season=<jaar>`, `dateDelta=` (leeg = actueel).
+- Respons: JSON-array van team-objecten. **De exacte veldnamen voor make-playoffs / win-division /
+  win-WS moeten live worden geverifieerd** (FanGraphs hernoemt sleutels weleens) en daarna in een
+  `_FG_FIELD`-mapping vastgelegd, met een teamnaam→slug-mapping zoals `fetch/standings.py` al heeft.
+
+**Implementatieplan (adapter `fetch_playoff_odds(clock, data_dir, client)`):**
+
+1. GET via `fetch/http.py::build_client` met een browser-achtige `User-Agent` (FanGraphs weert kale
+   clients); respecteer de bestaande throttle, geen retry.
+2. Map ruwe velden → genormaliseerde teams; sla het bestand atomisch op (zie standings als template).
+3. **Faal zacht** (zelfde patroon als standings): bij HTTP-/parsefout een waarschuwing en de
+   bestaande cache behouden; nooit de build blokkeren.
+4. Wire in `cli_fetch.py` naast `fetch_standings`, óók alleen vóór `season.windows.ps`.
+5. Test met een **gepinde, minimale** FanGraphs-JSON-fixture (publieke, gestripte payload — zie
+   "Publieke repo-hygiëne"); geen live call in CI.
+
+**Aandachtspunten:** FanGraphs-ToS/robots respecteren (lage frequentie, één call per build, caching);
+de feed kan tussen seizoenen van vorm wijzigen → behandel de veld-mapping als jaarlijks-onderhoud-
+item (SPEC §11.4). Alternatieve bron als FanGraphs dichtgaat: MLB-StatsAPI heeft geen kant-en-klare
+playoff-odds, dus dan is FanGraphs of Baseball-Reference de praktische keuze.
 
 ## Referenties
 
