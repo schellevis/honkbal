@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% from "_rows.html" import render_days %}
+{% block content %}
+{% include "nav.html" %}
+<h1><a href="/"><span>⚾</span> honkbal.net</a></h1>
+{% include "subnav.html" %}
+{% if countdown %}
+  {% if countdown[1] %}
+<h2 class="openingday">{{ countdown[0] }}</h2>
+  {% else %}
+<h2>{{ countdown[0] }}</h2>
+  {% endif %}
+{% endif %}
+{% if is_empty %}
+<p>Geen wedstrijden beschikbaar 😢</p>
+{% else %}
+<table class="table table-striped loadmore-container">
+{{ render_days(inline_days) }}
+</table>
+{% if tail_count > 0 %}
+<div class="loadmore-msg"></div>
+<button class="loadmore" data-page="{{ page }}" data-tail-version="{{ asset_version }}" data-tail-count="{{ tail_count }}">meer laden{% if tail_count %} (nog {{ tail_count }}){% endif %}</button>
+{% endif %}
+{% endif %}
+{% if has_postseason_footnote %}
+<p class="foot">* Wordt alleen gespeeld als nodig.</p>
+{% endif %}
+{% endblock %}
+{% block scripts %}
+<script type="module" src="{{ js_root }}/loadmore.js"></script>
+<script type="module" src="{{ js_root }}/nav.js"></script>
+{% endblock %}

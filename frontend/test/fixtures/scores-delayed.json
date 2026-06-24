@@ -1,0 +1,27 @@
+{
+  "dates": [
+    {
+      "date": "2026-06-21",
+      "games": [
+        {
+          "gamePk": 3001,
+          "gameDate": "2026-06-21T20:00:00Z",
+          "status": {
+            "abstractGameState": "Preview",
+            "detailedState": "Delayed Start"
+          },
+          "teams": {
+            "away": { "team": { "name": "Atlanta Braves", "abbreviation": "ATL" } },
+            "home": { "team": { "name": "Philadelphia Phillies", "abbreviation": "PHI" } }
+          },
+          "linescore": {
+            "currentInning": 1,
+            "isTopInning": true,
+            "outs": 0,
+            "offense": {}
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>honkbal.net</title>
+<link rel="icon" type="image/x-icon" href="/favicon.ico">
+<link rel="apple-touch-icon" sizes="57x57" href="/icon.png">
+<link rel="manifest" href="/manifest.json">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Oleo+Script:wght@700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/bootstrap.min.css?{{ asset_version }}">
+<link rel="stylesheet" href="/css/style.css?{{ asset_version }}">
+</head>
+<body{% block body_attrs %}{% endblock %}>
+<div class="container" style="max-width: 900px;">
+{% block content %}{% endblock %}
+</div>
+<!-- Cache-busting tradeoff (SPEC §7): de entry-<script src> krijgen ?{{ asset_version }},
+     maar interne ES-module-imports (import './favorites.js' e.d.) dragen geen cache-buster.
+     Gemitigeerd doordat JS in de SW network-first valt (sw.js). Bij een eerste bezoek
+     zónder SW kan de browser-HTTP-cache een stale binnenmodule serveren. Bewuste keuze:
+     een import-map zou dit volledig oplossen maar vereist een extra build-stap. -->
+<script type="module" src="{{ js_root }}/favorites-init.js"></script>
+<script type="module" src="{{ js_root }}/register-sw.js"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

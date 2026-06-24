@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block content %}
+{% include "nav.html" %}
+<h1><a href="/"><span>⚾</span> honkbal.net</a></h1>
+<section class="settings-panel">
+  <div class="settings-intro">
+    <h2>Favoriete teams</h2>
+    <p>Kies een of meer teams. Wedstrijden van deze teams krijgen daarna een opvallende achtergrond in het schema en bij de scores.</p>
+  </div>
+
+  <form id="favorites-form" class="favorites-form">
+    <div class="favorites-actions">
+      <button type="button" class="btn btn-primary" id="favorites-save">opslaan</button>
+      <button type="button" class="btn btn-secondary" id="favorites-clear">wis selectie</button>
+      <span id="favorites-status" class="favorites-status" aria-live="polite"></span>
+    </div>
+
+    <div class="favorites-grid">
+      {% for slug, label, logo in settings_teams %}
+      <label class="favorite-option">
+        <input type="checkbox" name="team" value="{{ slug | replace('+', ' ') }}">
+        <span class="favorite-option-card">
+          <span class="favorite-option-logo">{{ logo }}</span>
+          <span class="favorite-option-name">{{ label }}</span>
+        </span>
+      </label>
+      {% endfor %}
+    </div>
+  </form>
+</section>
+{% endblock %}
+{% block scripts %}
+<script type="module" src="{{ js_root }}/settings-entry.js"></script>
+<script type="module" src="{{ js_root }}/nav.js"></script>
+{% endblock %}

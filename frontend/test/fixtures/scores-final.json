@@ -1,0 +1,58 @@
+{
+  "dates": [
+    {
+      "date": "2026-06-21",
+      "games": [
+        {
+          "gamePk": 4001,
+          "gameDate": "2026-06-21T08:00:00Z",
+          "status": {
+            "abstractGameState": "Final",
+            "detailedState": "Final"
+          },
+          "teams": {
+            "away": { "team": { "name": "Cincinnati Reds", "abbreviation": "CIN" } },
+            "home": { "team": { "name": "Pittsburgh Pirates", "abbreviation": "PIT" } }
+          },
+          "linescore": {
+            "teams": {
+              "away": { "runs": 3 },
+              "home": { "runs": 1 }
+            }
+          }
+        },
+        {
+          "gamePk": 4002,
+          "gameDate": "2026-06-21T23:00:00Z",
+          "status": {
+            "abstractGameState": "Final",
+            "detailedState": "Final"
+          },
+          "teams": {
+            "away": { "team": { "name": "San Diego Padres", "abbreviation": "SD" } },
+            "home": { "team": { "name": "Los Angeles Dodgers", "abbreviation": "LAD" } }
+          },
+          "linescore": {
+            "teams": {
+              "away": { "runs": 2 },
+              "home": { "runs": 5 }
+            }
+          }
+        },
+        {
+          "gamePk": 4003,
+          "gameDate": "2026-06-21T18:00:00Z",
+          "status": {
+            "abstractGameState": "Preview",
+            "detailedState": "Scheduled"
+          },
+          "teams": {
+            "away": { "team": { "name": "Houston Astros", "abbreviation": "HOU" } },
+            "home": { "team": { "name": "Texas Rangers", "abbreviation": "TEX" } }
+          },
+          "linescore": null
+        }
+      ]
+    }
+  ]
+}

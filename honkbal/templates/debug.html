@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>⚾ honkbal.net — debug</h1>
+<dl>
+  <dt>Buildversie</dt><dd>{{ build_version }}</dd>
+  <dt>Buildtijd</dt><dd>{{ build_time }}</dd>
+  <dt>Seizoen</dt><dd>{{ season.year }} → {{ season.next_year }}{% if season.no_grab %} (no_grab){% endif %}</dd>
+  <dt>Schedule gewijzigd</dt><dd>{% if schedule_meta %}{{ schedule_meta.modified }}{% else %}geen schedule-data{% endif %}</dd>
+  <dt>Schedule gefetcht</dt><dd>{% if schedule_meta %}{{ schedule_meta.refreshed }}{% else %}geen schedule-data{% endif %}</dd>
+  <dt>Postseason ESPN-data</dt>
+  <dd>
+    {% if postseason %}
+      Gefetcht: {{ postseason.fetched_at }}, {{ postseason.games | length }} events
+    {% else %}
+      niet actief buiten postseason
+    {% endif %}
+  </dd>
+</dl>
+<h2>Gegenereerde bestanden</h2>
+<table>
+  <thead><tr><th>Bestand</th><th>Timestamp</th></tr></thead>
+  <tbody>
+  {% for fname, ts in docs_files.items() %}
+    <tr><td>{{ fname }}</td><td>{{ ts }}</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

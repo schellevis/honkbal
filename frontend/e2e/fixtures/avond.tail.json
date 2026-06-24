@@ -1,0 +1,10 @@
+{
+  "version": "e2ev1",
+  "page": "avond",
+  "total": 4,
+  "batch_size": 2,
+  "blocks": [
+    "<tr data-away-team=\"mets\" data-home-team=\"phillies\"><td>Mets</td><td>Phillies</td><td>23:10</td><td></td></tr>",
+    "<tr data-away-team=\"reds\" data-home-team=\"brewers\"><td>Reds</td><td>Brewers</td><td>23:40</td><td></td></tr>"
+  ]
+}

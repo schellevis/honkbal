@@ -1,0 +1,6 @@
+// Standings entry — honkbal.net v2.
+// Externe versioned entrypoint (geen inline script blob, SPEC §6.1; cachebuster via ?asset_version
+// in de template, SPEC §7). Self-init op DOMContentLoaded.
+import { init } from "./standings.js";
+
+globalThis.document.addEventListener("DOMContentLoaded", () => init(globalThis.document));

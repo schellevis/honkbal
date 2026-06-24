@@ -1,0 +1,45 @@
+{
+  "dates": [
+    {
+      "date": "2026-06-21",
+      "games": [
+        {
+          "gamePk": 1001,
+          "gameDate": "2026-06-21T17:05:00Z",
+          "status": {
+            "abstractGameState": "Live",
+            "detailedState": "In Progress"
+          },
+          "teams": {
+            "away": { "team": { "name": "Los Angeles Dodgers", "abbreviation": "LAD" } },
+            "home": { "team": { "name": "San Francisco Giants", "abbreviation": "SF" } }
+          },
+          "linescore": {
+            "currentInning": 3,
+            "isTopInning": false,
+            "outs": 2,
+            "offense": { "first": true, "second": false, "third": true }
+          }
+        },
+        {
+          "gamePk": 1002,
+          "gameDate": "2026-06-21T18:10:00Z",
+          "status": {
+            "abstractGameState": "Live",
+            "detailedState": "In Progress"
+          },
+          "teams": {
+            "away": { "team": { "name": "New York Mets", "abbreviation": "NYM" } },
+            "home": { "team": { "name": "Chicago Cubs", "abbreviation": "CHC" } }
+          },
+          "linescore": {
+            "currentInning": 5,
+            "isTopInning": true,
+            "outs": 0,
+            "offense": {}
+          }
+        }
+      ]
+    }
+  ]
+}

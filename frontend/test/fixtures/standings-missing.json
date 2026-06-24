@@ -1,0 +1,50 @@
+{
+  "records": [
+    {
+      "standingsType": "regularSeason",
+      "league": { "id": 103, "name": "American League" },
+      "division": { "id": 200, "name": "AL West" },
+      "teamRecords": [
+        {
+          "team": { "id": 201, "name": "Good Team", "abbreviation": "GOD" },
+          "wins": 50, "losses": 30, "winningPercentage": ".625",
+          "divisionRank": "1", "leagueRank": "1", "wildCardRank": "1",
+          "gamesBack": "-", "wildCardGamesBack": "+0.5",
+          "streakCode": "W2",
+          "splitRecords": [{ "type": "lastTen", "wins": 7, "losses": 3 }]
+        },
+        {
+          "team": { "id": 202, "name": "Missing Wins Team", "abbreviation": "MWT" },
+          "losses": 40, "winningPercentage": ".400",
+          "divisionRank": "2", "leagueRank": "2", "wildCardRank": "2",
+          "gamesBack": "10.0", "wildCardGamesBack": "2.0",
+          "streakCode": "L1",
+          "splitRecords": [{ "type": "lastTen", "wins": 4, "losses": 6 }]
+        },
+        {
+          "team": { "id": 203, "name": "No Wildcard Rank", "abbreviation": "NWR" },
+          "wins": 42, "losses": 38, "winningPercentage": ".525",
+          "divisionRank": "3", "leagueRank": "3",
+          "gamesBack": "8.0", "wildCardGamesBack": "4.0",
+          "streakCode": "W1",
+          "splitRecords": [{ "type": "lastTen", "wins": 5, "losses": 5 }]
+        }
+      ]
+    },
+    {
+      "standingsType": "regularSeason",
+      "league": { "id": 103, "name": "American League" },
+      "division": { "id": 999, "name": "Unknown Division" },
+      "teamRecords": [
+        {
+          "team": { "id": 204, "name": "Unknown Div Team", "abbreviation": "UDT" },
+          "wins": 40, "losses": 40, "winningPercentage": ".500",
+          "divisionRank": "1", "leagueRank": "4", "wildCardRank": "4",
+          "gamesBack": "-", "wildCardGamesBack": "5.0",
+          "streakCode": "W1",
+          "splitRecords": [{ "type": "lastTen", "wins": 5, "losses": 5 }]
+        }
+      ]
+    }
+  ]
+}

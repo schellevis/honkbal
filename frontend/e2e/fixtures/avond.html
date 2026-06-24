@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<title>Avond — Honkbal.net v2</title>
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<h1>Avond</h1>
+<table class="table table-striped">
+<tbody class="loadmore-container">
+<tr data-away-team="dodgers" data-home-team="giants"><td>Dodgers</td><td>Giants</td><td>22:10</td><td></td></tr>
+<tr data-away-team="cubs" data-home-team="cardinals"><td>Cubs</td><td>Cardinals</td><td>20:15</td><td></td></tr>
+</tbody>
+</table>
+<div class="loadmore-msg"></div>
+<button class="loadmore" data-page="avond" data-tail-version="e2ev1">Meer laden</button>
+<script type="module">
+import { init } from "/js/loadmore.js";
+document.addEventListener("DOMContentLoaded", () => init(document));
+</script>
+</body>
+</html>

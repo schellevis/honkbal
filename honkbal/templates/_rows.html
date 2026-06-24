@@ -1,0 +1,33 @@
+{% macro render_days(days, show_headers=True) %}
+{% for day in days %}
+{% if show_headers %}
+<thead>
+<tr>
+<th scope="col" colspan="2">
+  {{ day.header_label }}
+  {% if day.special %}
+    {% if day.special[1] == 'badge' %}
+      <span class="st">{{ day.special[0] }}</span>
+    {% else %}
+      {{ day.special[0] }}
+    {% endif %}
+  {% endif %}
+</th>
+</tr>
+</thead>
+{% endif %}
+<tbody>
+{% for row in day.rows %}
+<tr data-away-team="{{ row.away_slug }}" data-home-team="{{ row.home_slug }}"{% if row.is_postseason_row %} class="ps-row"{% endif %}>
+<th scope="row" width="40">{{ row.time_label }}</th>
+<td><div class="espn"></div>
+{% if row.postseason_descr %}
+<span class="stp">{{ row.postseason_descr }}{% if row.postseason_record %} {{ row.postseason_record }}{% endif %}</span><br>
+{% endif %}
+<span class="team">{{ row.away_logo }}{{ row.away_name }}</span> @ <span class="team">{{ row.home_logo }}{{ row.home_name }}</span>
+</td>
+</tr>
+{% endfor %}
+</tbody>
+{% endfor %}
+{% endmacro %}

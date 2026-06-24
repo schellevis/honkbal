@@ -1,0 +1,22 @@
+{
+  "dates": [
+    {
+      "date": "2026-06-21",
+      "games": [
+        {
+          "gamePk": 2001,
+          "gameDate": "2026-06-21T22:00:00Z",
+          "status": {
+            "abstractGameState": "Preview",
+            "detailedState": "Warmup"
+          },
+          "teams": {
+            "away": { "team": { "name": "New York Yankees", "abbreviation": "NYY" } },
+            "home": { "team": { "name": "Boston Red Sox", "abbreviation": "BOS" } }
+          },
+          "linescore": null
+        }
+      ]
+    }
+  ]
+}

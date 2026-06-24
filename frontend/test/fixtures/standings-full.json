@@ -1,0 +1,150 @@
+{
+  "records": [
+    {
+      "standingsType": "regularSeason",
+      "league": { "id": 103, "name": "American League" },
+      "division": { "id": 200, "name": "AL West" },
+      "teamRecords": [
+        {
+          "team": { "id": 108, "name": "Los Angeles Angels", "abbreviation": "LAA" },
+          "wins": 45, "losses": 35, "winningPercentage": ".563",
+          "divisionRank": "1", "leagueRank": "3", "wildCardRank": "2",
+          "gamesBack": "-", "wildCardGamesBack": "1.5",
+          "streakCode": "W3",
+          "splitRecords": [{ "type": "lastTen", "wins": 7, "losses": 3 }]
+        },
+        {
+          "team": { "id": 117, "name": "Houston Astros", "abbreviation": "HOU" },
+          "wins": 40, "losses": 40, "winningPercentage": ".500",
+          "divisionRank": "2", "leagueRank": "6", "wildCardRank": "5",
+          "gamesBack": "5.0", "wildCardGamesBack": "5.0",
+          "streakCode": "L2",
+          "splitRecords": [{ "type": "lastTen", "wins": 5, "losses": 5 }]
+        },
+        {
+          "team": { "id": 133, "name": "Oakland Athletics", "abbreviation": "OAK" },
+          "wins": 30, "losses": 50, "winningPercentage": ".375",
+          "divisionRank": "3", "leagueRank": "14", "wildCardRank": null,
+          "gamesBack": "15.0", "wildCardGamesBack": "15.0",
+          "streakCode": "L5",
+          "splitRecords": [{ "type": "lastTen", "wins": 2, "losses": 8 }]
+        }
+      ]
+    },
+    {
+      "standingsType": "regularSeason",
+      "league": { "id": 103, "name": "American League" },
+      "division": { "id": 201, "name": "AL East" },
+      "teamRecords": [
+        {
+          "team": { "id": 147, "name": "New York Yankees", "abbreviation": "NYY" },
+          "wins": 55, "losses": 25, "winningPercentage": ".688",
+          "divisionRank": "1", "leagueRank": "1", "wildCardRank": null,
+          "gamesBack": "-", "wildCardGamesBack": "-",
+          "streakCode": "W5",
+          "splitRecords": [{ "type": "lastTen", "wins": 8, "losses": 2 }]
+        },
+        {
+          "team": { "id": 111, "name": "Boston Red Sox", "abbreviation": "BOS" },
+          "wins": 48, "losses": 32, "winningPercentage": ".600",
+          "divisionRank": "2", "leagueRank": "2", "wildCardRank": "1",
+          "gamesBack": "7.0", "wildCardGamesBack": "+1.5",
+          "streakCode": "W2",
+          "splitRecords": [{ "type": "lastTen", "wins": 6, "losses": 4 }]
+        }
+      ]
+    },
+    {
+      "standingsType": "regularSeason",
+      "league": { "id": 103, "name": "American League" },
+      "division": { "id": 202, "name": "AL Central" },
+      "teamRecords": [
+        {
+          "team": { "id": 142, "name": "Minnesota Twins", "abbreviation": "MIN" },
+          "wins": 42, "losses": 38, "winningPercentage": ".525",
+          "divisionRank": "1", "leagueRank": "4", "wildCardRank": "3",
+          "gamesBack": "-", "wildCardGamesBack": "3.5",
+          "streakCode": "W1",
+          "splitRecords": [{ "type": "lastTen", "wins": 5, "losses": 5 }]
+        },
+        {
+          "team": { "id": 116, "name": "Detroit Tigers", "abbreviation": "DET" },
+          "wins": 38, "losses": 42, "winningPercentage": ".475",
+          "divisionRank": "2", "leagueRank": "8", "wildCardRank": "6",
+          "gamesBack": "4.0", "wildCardGamesBack": "6.5",
+          "streakCode": "L1",
+          "splitRecords": [{ "type": "lastTen", "wins": 4, "losses": 6 }]
+        }
+      ]
+    },
+    {
+      "standingsType": "regularSeason",
+      "league": { "id": 104, "name": "National League" },
+      "division": { "id": 203, "name": "NL East" },
+      "teamRecords": [
+        {
+          "team": { "id": 143, "name": "Philadelphia Phillies", "abbreviation": "PHI" },
+          "wins": 52, "losses": 28, "winningPercentage": ".650",
+          "divisionRank": "1", "leagueRank": "1", "wildCardRank": null,
+          "gamesBack": "-", "wildCardGamesBack": "-",
+          "streakCode": "W4",
+          "splitRecords": [{ "type": "lastTen", "wins": 7, "losses": 3 }]
+        },
+        {
+          "team": { "id": 121, "name": "New York Mets", "abbreviation": "NYM" },
+          "wins": 46, "losses": 34, "winningPercentage": ".575",
+          "divisionRank": "2", "leagueRank": "3", "wildCardRank": "2",
+          "gamesBack": "6.0", "wildCardGamesBack": "2.0",
+          "streakCode": "W1",
+          "splitRecords": [{ "type": "lastTen", "wins": 6, "losses": 4 }]
+        }
+      ]
+    },
+    {
+      "standingsType": "regularSeason",
+      "league": { "id": 104, "name": "National League" },
+      "division": { "id": 204, "name": "NL West" },
+      "teamRecords": [
+        {
+          "team": { "id": 119, "name": "Los Angeles Dodgers", "abbreviation": "LAD" },
+          "wins": 58, "losses": 22, "winningPercentage": ".725",
+          "divisionRank": "1", "leagueRank": "2", "wildCardRank": null,
+          "gamesBack": "-", "wildCardGamesBack": "-",
+          "streakCode": "W6",
+          "splitRecords": [{ "type": "lastTen", "wins": 9, "losses": 1 }]
+        },
+        {
+          "team": { "id": 135, "name": "San Diego Padres", "abbreviation": "SD" },
+          "wins": 44, "losses": 36, "winningPercentage": ".550",
+          "divisionRank": "2", "leagueRank": "4", "wildCardRank": "3",
+          "gamesBack": "14.0", "wildCardGamesBack": "3.5",
+          "streakCode": "W2",
+          "splitRecords": [{ "type": "lastTen", "wins": 6, "losses": 4 }]
+        }
+      ]
+    },
+    {
+      "standingsType": "regularSeason",
+      "league": { "id": 104, "name": "National League" },
+      "division": { "id": 205, "name": "NL Central" },
+      "teamRecords": [
+        {
+          "team": { "id": 112, "name": "Chicago Cubs", "abbreviation": "CHC" },
+          "wins": 41, "losses": 39, "winningPercentage": ".513",
+          "divisionRank": "1", "leagueRank": "5", "wildCardRank": "4",
+          "gamesBack": "-", "wildCardGamesBack": "4.5",
+          "streakCode": "W1",
+          "splitRecords": [{ "type": "lastTen", "wins": 5, "losses": 5 }]
+        },
+        {
+          "team": { "id": 113, "name": "Cincinnati Reds", "abbreviation": "CIN" },
+          "wins": 36, "losses": 44, "winningPercentage": ".450",
+          "divisionRank": "2", "leagueRank": "9", "wildCardRank": null,
+          "gamesBack": "5.0", "wildCardGamesBack": "8.5",
+          "streakCode": "L3",
+          "splitRecords": [{ "type": "lastTen", "wins": 3, "losses": 7 }]
+        }
+      ]
+    }
+  ]
+}

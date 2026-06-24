@@ -1,0 +1,106 @@
+name: build (fetch + deploy)
+
+on:
+  schedule:
+    # Behoud de NL-afgestelde cadans van de oude PHP-build (alleen uitvoering = Python nu).
+    - cron: '0 0 * 1,2,3,11,12 *'   # offseason 01:00 CET
+    - cron: '0 23 * 3-9 *'          # seizoen 01:00 CEST (vorige dag 23:00 UTC)
+    - cron: '0 8 * 4-10 *'          # 10:00 CEST
+    - cron: '0 13 * 4-10 *'         # 15:00 CEST
+    - cron: '0 16 * 4-10 *'         # 18:00 CEST
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v8.2.0
+        with:
+          python-version: "3.12"
+      - name: Sync (frozen)
+        run: uv sync --frozen
+      - name: Lint
+        run: uv run ruff check .
+      - name: Python acceptatietests (incl. config-validatie-gate)
+        run: uv run pytest -q
+      - name: Setup Node 22
+        uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+      - name: Install Node dependencies
+        run: npm ci
+      - name: Frontend unit-tests (node:test)
+        run: npm run test:unit
+      - name: Playwright browsers
+        run: npx playwright install --with-deps chromium
+      - name: Frontend DOM/offline-tests (Playwright, headless)
+        run: npm run test:e2e
+
+  build:
+    runs-on: ubuntu-latest
+    needs: gate
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v8.2.0
+        with:
+          python-version: "3.12"
+      - run: uv sync --frozen
+
+      - name: Restore data cache (last-known-good)
+        id: datacache
+        uses: actions/cache@v6
+        with:
+          path: .data
+          key: honkbal-data-${{ github.run_id }}
+          restore-keys: |
+            honkbal-data-
+
+      - name: Log cache status
+        run: |
+          if [ "${{ steps.datacache.outputs.cache-matched-key }}" = "" ]; then
+            echo "::warning::geen eerdere data-cache hersteld — verse fetch volgt"
+          else
+            echo "data-cache hersteld via ${{ steps.datacache.outputs.cache-matched-key }}"
+          fi
+
+      - name: Fetch data (schedule altijd; ESPN-postseason als now>=ps)
+        run: uv run honkbal fetch --data-dir .data
+
+      - name: Write version.txt (<sha:12>-<run>)
+        run: echo "${GITHUB_SHA::12}-${GITHUB_RUN_NUMBER}" > version.txt
+
+      - name: Render site → docs/
+        run: uv run honkbal render --out docs --data-dir .data
+
+      - name: Save data cache
+        if: always()
+        uses: actions/cache/save@v6
+        with:
+          path: .data
+          key: honkbal-data-${{ github.run_id }}
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: docs
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5

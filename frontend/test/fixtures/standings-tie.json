@@ -1,0 +1,43 @@
+{
+  "records": [
+    {
+      "standingsType": "regularSeason",
+      "league": { "id": 103, "name": "American League" },
+      "division": { "id": 200, "name": "AL West" },
+      "teamRecords": [
+        {
+          "team": { "id": 111, "name": "Team Alpha", "abbreviation": "ALP" },
+          "wins": 52, "losses": 28, "winningPercentage": ".650",
+          "divisionRank": "1", "leagueRank": "1", "wildCardRank": "1",
+          "gamesBack": "-", "wildCardGamesBack": "+0.5",
+          "streakCode": "W2",
+          "splitRecords": [{ "type": "lastTen", "wins": 6, "losses": 4 }]
+        },
+        {
+          "team": { "id": 112, "name": "Team Beta", "abbreviation": "BET" },
+          "wins": 48, "losses": 32, "winningPercentage": ".600",
+          "divisionRank": "2", "leagueRank": "1", "wildCardRank": "2",
+          "gamesBack": "2.0", "wildCardGamesBack": "2.0",
+          "streakCode": "W1",
+          "splitRecords": [{ "type": "lastTen", "wins": 5, "losses": 5 }]
+        },
+        {
+          "team": { "id": 113, "name": "Team Gamma", "abbreviation": "GAM" },
+          "wins": 50, "losses": 30, "winningPercentage": ".625",
+          "divisionRank": "3", "leagueRank": "1", "wildCardRank": "3",
+          "gamesBack": "1.0", "wildCardGamesBack": "1.0",
+          "streakCode": "L1",
+          "splitRecords": [{ "type": "lastTen", "wins": 4, "losses": 6 }]
+        },
+        {
+          "team": { "id": 114, "name": "Team Delta", "abbreviation": "DEL" },
+          "wins": 48, "losses": 32, "winningPercentage": ".600",
+          "divisionRank": "4", "leagueRank": "1", "wildCardRank": "4",
+          "gamesBack": "2.0", "wildCardGamesBack": "3.0",
+          "streakCode": "W3",
+          "splitRecords": [{ "type": "lastTen", "wins": 7, "losses": 3 }]
+        }
+      ]
+    }
+  ]
+}

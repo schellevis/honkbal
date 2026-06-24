@@ -1,0 +1,78 @@
+name: rebuild (no fetch + deploy)
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v8.2.0
+        with:
+          python-version: "3.12"
+      - run: uv sync --frozen
+      - run: uv run ruff check .
+      - run: uv run pytest -q
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+      - run: npm ci
+      - run: npm run test:unit
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
+
+  build:
+    runs-on: ubuntu-latest
+    needs: gate
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v8.2.0
+        with:
+          python-version: "3.12"
+      - run: uv sync --frozen
+
+      - name: Restore data cache (VERPLICHT)
+        id: datacache
+        uses: actions/cache/restore@v6
+        with:
+          path: .data
+          key: honkbal-data-${{ github.run_id }}
+          restore-keys: |
+            honkbal-data-
+
+      - name: Fail luid als cache ontbreekt
+        if: steps.datacache.outputs.cache-matched-key == ''
+        run: |
+          echo "::error::geen data-cache gevonden — rebuild zonder fetch kan niet renderen. Draai eerst build.yml."
+          exit 1
+
+      - name: Write version.txt (<sha:12>-<run>)
+        run: echo "${GITHUB_SHA::12}-${GITHUB_RUN_NUMBER}" > version.txt
+
+      - name: Render site → docs/
+        run: uv run honkbal render --out docs --data-dir .data
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: docs
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v5

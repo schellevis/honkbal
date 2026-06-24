@@ -1,0 +1,26 @@
+<ul class="nav nav-pills" style="margin-bottom:20px;">
+  <li class="nav-item">
+    <a class="nav-link{% if page == 'avond' %} active{% endif %}" href="/avond.html?{{ asset_version }}">avond</a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link{% if page == 'ochtend' %} active{% endif %}" href="/ochtend.html?{{ asset_version }}">ochtend</a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link{% if page == 'nacht' %} active{% endif %}" href="/nacht.html?{{ asset_version }}">nacht</a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link{% if page == 'alles' %} active{% endif %}" href="/alles.html?{{ asset_version }}">alles</a>
+  </li>
+</ul>
+{% if teams %}
+<div style="margin-bottom: 10px;">
+  <label for="menu" style="margin-left: 10px; margin-right: 10px;">filter op team: </label>
+  <select data-team-select name="menu" id="menu" class="custom-select" style="width: 120px; margin-right: 10px;" aria-label="Kies een team">
+    <option value="">team…</option>
+    {% for slug, label in teams %}
+    <option value="{{ slug }}">{{ label }}</option>
+    {% endfor %}
+  </select>
+  <button data-team-go id="go" class="btn btn-primary">toon</button>
+</div>
+{% endif %}

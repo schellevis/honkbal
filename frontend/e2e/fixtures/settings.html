@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<title>Instellingen — Honkbal.net v2</title>
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<h1><a href="/"><span>⚾</span> honkbal.net</a></h1>
+<section class="settings-panel">
+  <div class="settings-intro">
+    <h2>Favoriete teams</h2>
+    <p>Kies een of meer teams.</p>
+  </div>
+  <form id="favorites-form" class="favorites-form">
+    <div class="favorites-actions">
+      <button type="button" class="btn btn-primary" id="favorites-save">opslaan</button>
+      <button type="button" class="btn btn-secondary" id="favorites-clear">wis selectie</button>
+      <span id="favorites-status" class="favorites-status" aria-live="polite"></span>
+    </div>
+    <div class="favorites-grid">
+      <label class="favorite-option">
+        <input type="checkbox" name="team" value="yankees">
+        <span class="favorite-option-card"><span class="favorite-option-name">Yankees</span></span>
+      </label>
+      <label class="favorite-option">
+        <input type="checkbox" name="team" value="dodgers">
+        <span class="favorite-option-card"><span class="favorite-option-name">Dodgers</span></span>
+      </label>
+      <label class="favorite-option">
+        <input type="checkbox" name="team" value="mets">
+        <span class="favorite-option-card"><span class="favorite-option-name">Mets</span></span>
+      </label>
+      <label class="favorite-option">
+        <input type="checkbox" name="team" value="cubs">
+        <span class="favorite-option-card"><span class="favorite-option-name">Cubs</span></span>
+      </label>
+      <label class="favorite-option">
+        <input type="checkbox" name="team" value="red sox">
+        <span class="favorite-option-card"><span class="favorite-option-name">Red Sox</span></span>
+      </label>
+    </div>
+  </form>
+</section>
+<script type="module">
+import { init } from "/js/settings.js";
+document.addEventListener("DOMContentLoaded", () => init(document));
+</script>
+</body>
+</html>
