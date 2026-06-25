@@ -96,9 +96,9 @@ def fetch_playoff_odds(
 def load_playoff_odds(data_dir: Path) -> PlayoffOddsByTeam:
     """Load optional normalized playoff odds from data_dir/playoff_odds.json.
 
-    The first implementation deliberately avoids scraping a third-party odds page during the
-    production build. If an external process writes normalized odds into the cache, render uses
-    them; otherwise enrichment falls back to standings/rivalry signals.
+    The file is written by fetch_playoff_odds (FanGraphs primary, Baseball-Reference fallback).
+    If it is absent or unreadable, render proceeds without odds and enrichment falls back to
+    standings/rivalry signals.
     """
     path = data_dir / "playoff_odds.json"
     if not path.exists():
