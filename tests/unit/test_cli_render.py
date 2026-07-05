@@ -1,5 +1,6 @@
 import json
 import re
+from datetime import datetime
 from pathlib import Path
 from unittest.mock import patch
 
@@ -19,7 +20,16 @@ SCHEDULE_PAGES = ["avond", "ochtend", "nacht", "alles"]  # hebben een eigen tail
 
 def test_render_produces_all_docs_files(tmp_path):
     out = tmp_path / "docs"
-    rc = main(["render", "--out", str(out), "--data-dir", str(FIXTURE_DATA)])
+    # Pin de klok op de start van het fixture-venster (games lopen 2026-06-21 t/m 2026-07-20).
+    # Zonder vaste klok filtert de >now-filter met de systeemtijd verse games weg: naarmate
+    # het seizoen vordert zakken de per-tijdvak-pagina's onder de 250-drempel en verdwijnt hun
+    # tail.json → de tail-assert wordt een tijdbom. Alle andere tests hier pinnen de klok al.
+    clock = FrozenClock(datetime(2026, 6, 21, 12, 0, tzinfo=AMSTERDAM))
+    rc = main(
+        ["--now", "2026-06-21T12:00:00+02:00", "render",
+         "--out", str(out), "--data-dir", str(FIXTURE_DATA)],
+        clock=clock,
+    )
     assert rc == 0
 
     for page in CORE_PAGES:
