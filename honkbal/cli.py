@@ -80,13 +80,25 @@ def cmd_render(args, *, clock: Clock | None = None) -> int:
         return 2
 
     from honkbal.cli_version import resolve_asset_version  # noqa: PLC0415
+    from honkbal.enrichment import enrich_games  # noqa: PLC0415
     from honkbal.fetch.espn_postseason import load_postseason  # noqa: PLC0415
+    from honkbal.fetch.playoff_odds import load_playoff_odds  # noqa: PLC0415
+    from honkbal.fetch.standings import load_standings  # noqa: PLC0415
     from honkbal.parse.schedule import load_games  # noqa: PLC0415
     from honkbal.render.pages import render_site  # noqa: PLC0415
 
     loaded = load_games(data_dir, clock=clock)
     games, meta = loaded if loaded else ([], None)
     postseason = load_postseason(data_dir)
+    standings = load_standings(data_dir)
+    playoff_odds = load_playoff_odds(data_dir)
+    games = enrich_games(
+        games,
+        season=season,
+        clock=clock,
+        standings=standings,
+        playoff_odds=playoff_odds,
+    )
 
     asset_ver = resolve_asset_version()
 

@@ -29,6 +29,9 @@ class RowContext:
     postseason_descr: str | None
     postseason_record: str | None
     is_postseason_row: bool
+    enrichment_score: float | None = None
+    enrichment_label: str | None = None
+    enrichment_reasons: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -114,6 +117,9 @@ def build_page_context(
                 postseason_descr=ps_descr,
                 postseason_record=ps_standing,
                 is_postseason_row=is_ps_row,
+                enrichment_score=g.enrichment.score if g.enrichment is not None else None,
+                enrichment_label=g.enrichment.label if g.enrichment is not None else None,
+                enrichment_reasons=g.enrichment.reasons if g.enrichment is not None else (),
             ))
 
         days.append(DayBlock(

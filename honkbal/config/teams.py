@@ -23,6 +23,39 @@ TEAM_ABBR: tuple[str, ...] = (
     "pit", "sd", "sf", "sea", "stl", "tb", "tex", "tor", "wsh", "ari",
 )
 
+TEAM_DIVISIONS: dict[str, str] = {
+    "orioles": "AL East",
+    "yankees": "AL East",
+    "red sox": "AL East",
+    "blue jays": "AL East",
+    "rays": "AL East",
+    "white sox": "AL Central",
+    "guardians": "AL Central",
+    "tigers": "AL Central",
+    "royals": "AL Central",
+    "twins": "AL Central",
+    "astros": "AL West",
+    "angels": "AL West",
+    "athletics": "AL West",
+    "mariners": "AL West",
+    "rangers": "AL West",
+    "braves": "NL East",
+    "marlins": "NL East",
+    "mets": "NL East",
+    "phillies": "NL East",
+    "nationals": "NL East",
+    "cubs": "NL Central",
+    "cardinals": "NL Central",
+    "brewers": "NL Central",
+    "pirates": "NL Central",
+    "reds": "NL Central",
+    "dodgers": "NL West",
+    "giants": "NL West",
+    "padres": "NL West",
+    "rockies": "NL West",
+    "d-backs": "NL West",
+}
+
 
 def normalize_team(name: str) -> str:
     n = name.strip().lower().replace("+", " ")
@@ -45,3 +78,7 @@ def league_of(name: str) -> str | None:
     if n in frozenset(TEAMS_NL):
         return "NL"
     return None
+
+
+def division_of(name: str) -> str | None:
+    return TEAM_DIVISIONS.get(normalize_team(name))

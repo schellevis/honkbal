@@ -6,7 +6,9 @@ from pathlib import Path
 
 from honkbal.clock import Clock
 from honkbal.fetch.espn_postseason import fetch_postseason
+from honkbal.fetch.playoff_odds import fetch_playoff_odds
 from honkbal.fetch.schedule import fetch_schedule
+from honkbal.fetch.standings import fetch_standings
 from honkbal.season import ConfigError, select_active_season
 
 
@@ -31,6 +33,24 @@ def cmd_fetch(args, *, clock: Clock) -> int:
             "last-known-good behouden",
             file=sys.stderr,
         )
+
+    if clock.now() < season.windows.ps:
+        standings = fetch_standings(clock, data_dir=data_dir)
+        if not standings.ok:
+            print(
+                "[waarschuwing] standings-fetch mislukt; enrichment gebruikt bestaande cache "
+                "of valt terug op basisregels",
+                file=sys.stderr,
+            )
+        odds = fetch_playoff_odds(clock, data_dir=data_dir)
+        if not odds.ok:
+            print(
+                "[waarschuwing] playoff-odds-fetch mislukt; enrichment gebruikt bestaande cache "
+                "of valt terug op basisregels",
+                file=sys.stderr,
+            )
+    else:
+        print("[info] postseason — standings/playoff-odds-fetch voor enrichment overgeslagen")
 
     if clock.now() >= season.windows.ps:
         ps = fetch_postseason(clock, data_dir=data_dir)

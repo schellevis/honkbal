@@ -7,7 +7,7 @@ from pydantic import BaseModel, ConfigDict
 
 
 class Enrichment(BaseModel):
-    """Toekomsthaak (SPEC §11): AI-interessantheid. In v1 nooit gevuld."""
+    """Interessantheidsscore voor uitgelichte reguliere-seizoenwedstrijden."""
 
     model_config = ConfigDict(frozen=True)
 

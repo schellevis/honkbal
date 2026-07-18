@@ -37,6 +37,36 @@ test("renderScoresHtml highlights a game whose API names match a settings-favori
   assert.doesNotMatch(html, /data-away-team="boston-red-sox"/); // niet de oude gehyphende bug
 });
 
+// --- all-star game rendering (regressie: "AmericanAmerican") ---
+test("renderScoresHtml renders the all-star game with league name + logo, not doubled text", () => {
+  // Exact de vorm die de MLB Stats API voor de all-star game levert.
+  const game = {
+    gameDate: "2026-07-14T23:00:00Z",
+    status: { abstractGameState: "Final", detailedState: "Final" },
+    teams: {
+      away: {
+        score: 4, isWinner: true,
+        team: { name: "American League All-Stars", clubName: "American", abbreviation: "AL" },
+      },
+      home: {
+        score: 0, isWinner: false,
+        team: { name: "National League All-Stars", clubName: "National", abbreviation: "NL" },
+      },
+    },
+  };
+  const html = scores.renderScoresHtml([], [game], [], () => false);
+  // Volledige liganaam, niet de korte dubbelzinnige clubName.
+  assert.match(html, /American League/);
+  assert.match(html, /National League/);
+  // Ligalogo i.p.v. tekst-fallback.
+  assert.match(html, /\/img\/american\+league-fs8\.png/);
+  assert.match(html, /\/img\/national\+league-fs8\.png/);
+  assert.doesNotMatch(html, /logofill/);
+  // De oorspronkelijke bug: naam verscheen dubbel ("AmericanAmerican").
+  assert.doesNotMatch(html, /AmericanAmerican/);
+  assert.doesNotMatch(html, /NationalNational/);
+});
+
 // --- classifyGame ---
 test("classifyGame: Live → 'live'", () => {
   const game = fixture("scores-live.json").dates[0].games[0];

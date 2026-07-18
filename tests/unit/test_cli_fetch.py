@@ -18,7 +18,7 @@ def test_fetch_skipped_via_env_is_noop_ok(tmp_path, monkeypatch):
 
 
 def test_postseason_only_fetched_when_now_ge_ps(tmp_path, monkeypatch):
-    calls = {"schedule": 0, "postseason": 0}
+    calls = {"schedule": 0, "standings": 0, "odds": 0, "postseason": 0}
 
     def fake_schedule(clock, *, data_dir):
         calls["schedule"] += 1
@@ -36,18 +36,36 @@ def test_postseason_only_fetched_when_now_ge_ps(tmp_path, monkeypatch):
 
         return R()
 
+    def fake_standings(clock, *, data_dir):
+        calls["standings"] += 1
+
+        class R:
+            ok, count = True, 30
+
+        return R()
+
+    def fake_odds(clock, *, data_dir):
+        calls["odds"] += 1
+
+        class R:
+            ok, count, source = True, 30, "fangraphs"
+
+        return R()
+
     monkeypatch.setattr("honkbal.cli_fetch.fetch_schedule", fake_schedule)
     monkeypatch.setattr("honkbal.cli_fetch.fetch_postseason", fake_postseason)
+    monkeypatch.setattr("honkbal.cli_fetch.fetch_standings", fake_standings)
+    monkeypatch.setattr("honkbal.cli_fetch.fetch_playoff_odds", fake_odds)
 
     # midseason (juni 2026, vóór ps 01-10) → géén postseason
     clock = FrozenClock(datetime(2026, 6, 21, 12, 0, tzinfo=AMSTERDAM))
     assert cli_fetch.cmd_fetch(_Args(tmp_path), clock=clock) == 0
-    assert calls == {"schedule": 1, "postseason": 0}
+    assert calls == {"schedule": 1, "standings": 1, "odds": 1, "postseason": 0}
 
     # postseason (oktober 2026, na ps) → óók postseason
     clock = FrozenClock(datetime(2026, 10, 5, 12, 0, tzinfo=AMSTERDAM))
     assert cli_fetch.cmd_fetch(_Args(tmp_path), clock=clock) == 0
-    assert calls == {"schedule": 2, "postseason": 1}
+    assert calls == {"schedule": 2, "standings": 1, "odds": 1, "postseason": 1}
 
 
 def test_partial_fetch_keeps_last_known_good(tmp_path, monkeypatch):
@@ -58,7 +76,21 @@ def test_partial_fetch_keeps_last_known_good(tmp_path, monkeypatch):
 
         return R()
 
+    def failing_standings(clock, *, data_dir):
+        class R:
+            ok, count = False, 0
+
+        return R()
+
+    def failing_odds(clock, *, data_dir):
+        class R:
+            ok, count, source = False, 0, None
+
+        return R()
+
     monkeypatch.setattr("honkbal.cli_fetch.fetch_schedule", failing_schedule)
+    monkeypatch.setattr("honkbal.cli_fetch.fetch_standings", failing_standings)
+    monkeypatch.setattr("honkbal.cli_fetch.fetch_playoff_odds", failing_odds)
     clock = FrozenClock(datetime(2026, 6, 21, 12, 0, tzinfo=AMSTERDAM))
     # cmd_fetch logt de degradatie maar faalt de build NIET (SPEC §9/§12.12)
     assert cli_fetch.cmd_fetch(_Args(tmp_path), clock=clock) == 0

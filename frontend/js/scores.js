@@ -1,6 +1,6 @@
 import { basesSvg, outsSvg } from "./util/diamond.js";
 import { amsHHmm, nyDateWindow, mmddyyyy, yyyymmdd } from "./util/time.js";
-import { logoPicture } from "./util/logo.js";
+import { logoPicture, displayName } from "./util/logo.js";
 import { escapeHtml } from "./util/dom.js";
 import { isFavoriteMatchup, applyFavoriteHighlights, initFavorites, normalizeTeam } from "./favorites.js";
 
@@ -219,7 +219,10 @@ function extractGames(apiJson) {
 function renderTeamScore(competitor) {
   const team = competitor?.team ?? {};
   // Korte weergavenaam ("Yankees") zoals productie; logoPicture canonicaliseert toch.
-  const name = team.clubName ?? team.shortDisplayName ?? team.name ?? "";
+  // displayName mapt de all-star pseudo-teams ("American"/"AL All-Stars") naar hun volledige
+  // liganaam ("American League"), zodat logoPicture het ligalogo vindt i.p.v. een tekst-fallback
+  // (anders verscheen de naam dubbel: logofill-tekst + score-name).
+  const name = displayName(team.clubName ?? team.shortDisplayName ?? team.name ?? "");
   const abbr = team.abbreviation || name;
   const winner = competitor?.isWinner === true;
   const nameHtml = winner ? `<strong>${escapeHtml(name)}</strong>` : escapeHtml(name);
