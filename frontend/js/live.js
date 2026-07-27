@@ -6,6 +6,16 @@ import { nyDateWindow, mmddyyyy } from "./util/time.js";
 import { escapeHtml } from "./util/dom.js";
 import { isFavoriteMatchup, applyFavoriteHighlights, initFavorites, normalizeTeam } from "./favorites.js";
 
+// Zolang de live-sectie een bètafeature is (SPEC §6.9) heet de avond-tab server-side gewoon
+// "avond"; met de feature aan wordt het label client-side "nu + avond" (SPEC §6.8).
+export function applyNuAvondLabel(doc) {
+  if (!doc.querySelectorAll) return;
+  for (const link of doc.querySelectorAll(".nav-link")) {
+    const href = link.getAttribute ? link.getAttribute("href") ?? "" : "";
+    if (href.includes("/avond.html")) link.textContent = "nu + avond";
+  }
+}
+
 // Eén tabel met kop "nu bezig"; lege rijenset → lege string (sectie verborgen, SPEC §6.8).
 export function renderLiveHtml(live, preview, isFav) {
   const rows = renderScoresHtml(live, [], preview, isFav);

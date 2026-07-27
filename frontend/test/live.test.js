@@ -67,6 +67,25 @@ test("syncHiddenRows hides only one row per live game for a doubleheader", () =>
   assert.equal([row1, row2].filter((r) => r.hidden).length, 1);
 });
 
+// --- applyNuAvondLabel ---
+test("applyNuAvondLabel renames only the avond tab link", () => {
+  const doc = globalThis.document;
+  const avond = doc.createElement("a");
+  avond.classList.add("nav-link");
+  avond.setAttribute("href", "/avond.html?v1");
+  avond.textContent = "avond";
+  const nacht = doc.createElement("a");
+  nacht.classList.add("nav-link");
+  nacht.setAttribute("href", "/nacht.html?v1");
+  nacht.textContent = "nacht";
+  doc.body.appendChild(avond);
+  doc.body.appendChild(nacht);
+
+  live.applyNuAvondLabel(doc);
+  assert.equal(avond.textContent, "nu + avond");
+  assert.equal(nacht.textContent, "nacht");
+});
+
 // --- init ---
 function containerDoc() {
   const doc = globalThis.document;

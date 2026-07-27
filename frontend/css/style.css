@@ -551,3 +551,41 @@ p.foot a:hover { color: var(--c-accent); }
     border-left-color: #4ade80;
   }
 }
+
+/* === BETAFEATURES (SPEC §6.9) === */
+.beta-options {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.beta-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 0;
+  cursor: pointer;
+}
+
+.beta-option input {
+  margin-top: 3px;
+}
+
+/* === INTERESSEFILTER (SPEC §6.9, bèta) === */
+.interest-filter {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0 0 16px;
+  font-size: 14px;
+  color: var(--c-text-muted);
+}
+
+.interest-filter input[type="range"] {
+  flex: 1;
+  max-width: 260px;
+}
+
+.interest-hidden {
+  display: none;
+}

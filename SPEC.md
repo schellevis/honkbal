@@ -491,9 +491,11 @@ de ESPN-postseason-bron (alleen `fetched_at` + aantal events, of "niet actief bu
 en het bestaan/timestamp van de gegenereerde `docs/`-hoofdbestanden. **Geen** verwijzingen meer naar
 `espn.json`, `tvgidsnl.json` of oude scorebestanden.
 
-### 6.8 Live-sectie ("nu") op de avond-tab [NEW]
-De avond-tab heet in de navigatie **"nu + avond"** en toont bovenaan een client-side
-live-sectie met de wedstrijden die op dít moment bezig zijn, inclusief scores:
+### 6.8 Live-sectie ("nu") op de avond-tab [NEW, bèta §6.9]
+Met de bètafeature `live` aan (§6.9) toont de avond-tab bovenaan een client-side live-sectie
+met de wedstrijden die op dít moment bezig zijn, inclusief scores, en hernoemt de module het
+navigatielabel van de avond-tab client-side naar **"nu + avond"** (server-side blijft het
+"avond" zolang dit bèta is):
 - Alleen op pagina's met `page == 'avond'` (dus ook `index.html` zolang de default-tab avond is).
 - ES-module `live.js` + entry `live-entry.js` (zelfde patroon als §6.1/§6.2: geen inline blobs).
 - Endpoint als §6.2 (MLB Stats API, `hydrate=linescore,team`), maar met een venster van **2 dagen**
@@ -511,6 +513,29 @@ live-sectie met de wedstrijden die op dít moment bezig zijn, inclusief scores:
 - Auto-refresh: 30 s zolang er live/preview-wedstrijden zijn, anders 300 s (zelfde regel als §6.2).
   Netwerkfout → sectie ongewijzigd laten (geen foutmelding; het statische schema blijft leidend).
   Geen localStorage-cache: de sectie is per definitie "nu".
+
+### 6.9 Bètafeatures + interessefilter [NEW]
+Experimentele features zijn **opt-in** via een "Bètafeatures"-sectie op de instellingenpagina:
+- Opslag: localStorage-key `honkbal-beta-features` (JSON-array van feature-namen), browser-lokaal
+  zoals favorieten (§6.1). Checkbox-wijzigingen worden **direct** opgeslagen (geen opslaan-knop);
+  onbekende namen in de payload worden genegeerd. Bèta-checkboxes dragen `name="beta"` en vallen
+  buiten de favorieten-flow (opslaan/wissen raakt ze niet).
+- Entry-modules van bètafeatures checken de flag vóór init; met de flag uit gedraagt de site zich
+  exact als zonder de feature.
+- Bekende features: **`live`** (§6.8) en **`interest`** (hieronder).
+
+**Interessefilter (`interest`):** slider op alle schemapagina's die alleen de interessantste
+wedstrijden toont, op basis van de build-time enrichment-score (§11):
+- Rendering: elke schema-rij met een enrichment-score draagt `data-interest="<score 0..100,
+  afgerond>"`; rijen zonder score (enrichment `None`, bv. postseason) hebben het attribuut niet
+  en tellen client-side als score 0.
+- ES-module `interest.js` + entry `interest-entry.js`. De module injecteert de slider
+  (bereik 0..100) boven de schematabel; drempel 0 = filter uit (alles zichtbaar).
+- Rijen met score < drempel krijgen class `interest-hidden` (CSS `display:none`) — bewust een
+  eigen klasse en niet `hidden`, zodat het filter nooit conflicteert met de rij-dedup van de
+  live-sectie (§6.8). Dagkoppen waarvan alle rijen verborgen zijn worden mee verborgen.
+- De drempel wordt bewaard in localStorage (`honkbal-interest-threshold`) en bij "meer laden"
+  (§6.6) opnieuw toegepast op bijgeladen rijen (MutationObserver).
 
 ---
 
