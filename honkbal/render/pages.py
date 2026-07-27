@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 from honkbal.clock import AMSTERDAM, Clock
 from honkbal.config.teams import TEAMS_AL, TEAMS_NL, team_slug
+from honkbal.config.toggles import LIVE_GRACE_HOURS
 from honkbal.models import Game, PostseasonData, ScheduleMeta
 from honkbal.render.context import PageContext, build_page_context, default_tab
 from honkbal.render.env import make_env
@@ -189,24 +190,31 @@ def render_site(
     clock: Clock,
     img_dir: Path | None = None,
 ) -> RenderReport:
-    """Render full site to out_dir. Filters to games from now onward. Returns RenderReport."""
+    """Render full site to out_dir.
+
+    Filters to games from now onward, plus timed games that started within the last
+    LIVE_GRACE_HOURS (likely still in progress). Returns RenderReport.
+    """
 
     out_dir.mkdir(parents=True, exist_ok=True)
     report = RenderReport()
 
-    # §3.2: toon strikt wedstrijden vanaf nu (parser is puur, filter leeft hier).
-    # Voor GETIMEDE games is de grens moment-nauwkeurig: starttijd strikt > nu, zodat een
-    # reeds begonnen wedstrijd verdwijnt en alleen nog-komende wedstrijden blijven.
+    # §3.2: toon wedstrijden vanaf nu, plus wedstrijden die vermoedelijk nog bezig zijn
+    # (parser is puur, filter leeft hier).
+    # Voor GETIMEDE games is de grens moment-nauwkeurig met een grace-window: starttijd
+    # strikt > nu − LIVE_GRACE_HOURS, zodat een reeds begonnen wedstrijd zichtbaar blijft
+    # zolang die redelijkerwijs nog bezig kan zijn, en pas daarna verdwijnt.
     # Voor TBD games (geen tijd) is de grens datum-granulair: date_ams >= vandaag, want
     # zonder starttijd valt niet te bepalen of een wedstrijd op vandaag al voorbij is.
     now = clock.now()
     date_cutoff = now.date()
+    live_cutoff = now - timedelta(hours=LIVE_GRACE_HOURS)
 
     def _keep(g) -> bool:
         if g.is_tbd or g.time_ams is None:
             return g.date_ams >= date_cutoff
         start = datetime.combine(g.date_ams, g.time_ams, tzinfo=AMSTERDAM)
-        return start > now
+        return start > live_cutoff
 
     filtered_games = [g for g in games if _keep(g)]
     report.game_count = len(filtered_games)

@@ -169,10 +169,13 @@ bepaalt welke rij van een paar behouden blijft (laagste seq eerst).
   - **[FIX]** TBD-regels worden óók in `America/New_York` geïnterpreteerd, consistent met getimede
     regels (legacy gebruikte daar Amsterdam — bron van datuminconsistentie). `date_et` en
     `date_ams` worden voor TBD identiek afgeleid uit de NY-kalenderdatum.
-- **Filter:** alleen wedstrijden met start `> nu` (strikt vanaf nu; reeds begonnen wedstrijden
-  vervallen). **[FIX — was `> (nu − 1 dag)` in legacy; v2 toont strikt toekomstige wedstrijden]**
-  Getimede regels: moment-nauwkeurig (`start > nu`). TBD-regels (geen starttijd): datum-granulair
-  (`date_ams >= vandaag`), want zonder tijd valt niet te bepalen of een wedstrijd vandaag al voorbij is.
+- **Filter:** alleen wedstrijden met start `> nu − LIVE_GRACE_HOURS` (toekomstige wedstrijden plus
+  wedstrijden die vermoedelijk nog bezig zijn; `LIVE_GRACE_HOURS = 4` in `config/toggles.py`).
+  **[FIX — was `> (nu − 1 dag)` in legacy; daarna strikt `> nu`; nu een grace-window zodat een
+  reeds begonnen wedstrijd zichtbaar blijft zolang die redelijkerwijs nog loopt]**
+  Getimede regels: moment-nauwkeurig (`start > nu − grace`). TBD-regels (geen starttijd):
+  datum-granulair (`date_ams >= vandaag`), want zonder tijd valt niet te bepalen of een wedstrijd
+  vandaag al voorbij is.
 - **Allowlist (render-guard):** alleen renderen als away **of** home een bekend MLB-team is (of een
   all-star pseudo-team). Zie §4.2. **[LEGACY]** (in legacy heette de allowlist-array verwarrend
   `extrateams`). Door de versmalde fetch-scope is dit niet meer de primaire affiliate-filter, maar
@@ -243,6 +246,8 @@ In legacy al dode code (`site.php` laadt `tvgidsnl.json` niet). Volledig verwijd
 - `sleep_seconds = 2`, `grab_no_wait = false`.
 - `espncap = 3000` (seconden, §3.5).
 - `countdown_from = "01-01"` (vanaf welke dag-maand de opening-day-countdown tonen).
+- `live_grace_hours = 4` **[NEW]**: getimede wedstrijden blijven tot dit aantal uren na hun
+  starttijd in de gerenderde schema's staan (vermoedelijk nog bezig, §3.2).
 - ~~`espnpsmatchtimes`~~ **[DROP]** (hoorde bij de tv-gids-matching).
 - ~~`espnmatchtvgidsinps`~~ **[DROP]** (tvgids.nl).
 
@@ -485,6 +490,27 @@ buildversie + buildtijd; schedule `modified`/`refreshed`; actief seizoen + `next
 de ESPN-postseason-bron (alleen `fetched_at` + aantal events, of "niet actief buiten postseason");
 en het bestaan/timestamp van de gegenereerde `docs/`-hoofdbestanden. **Geen** verwijzingen meer naar
 `espn.json`, `tvgidsnl.json` of oude scorebestanden.
+
+### 6.8 Live-sectie ("nu") op de avond-tab [NEW]
+De avond-tab heet in de navigatie **"nu + avond"** en toont bovenaan een client-side
+live-sectie met de wedstrijden die op dít moment bezig zijn, inclusief scores:
+- Alleen op pagina's met `page == 'avond'` (dus ook `index.html` zolang de default-tab avond is).
+- ES-module `live.js` + entry `live-entry.js` (zelfde patroon als §6.1/§6.2: geen inline blobs).
+- Endpoint als §6.2 (MLB Stats API, `hydrate=linescore,team`), maar met een venster van **2 dagen**
+  (NY-vandaag + NY-gisteren): een wedstrijd die in de Nederlandse ochtend nog loopt hoort bij de
+  NY-kalenderdag van gisteren.
+- Toont wedstrijden met `classifyGame` ∈ {live, preview} (bezig, warmup of delayed) met dezelfde
+  rij-markup, sortering (favoriet eerst, §6.2) en statuslabels als de scorepagina; `finished` wordt
+  hier **niet** getoond (daarvoor is de scorepagina).
+- Kop "nu bezig". Geen live wedstrijden → sectie volledig leeg/verborgen (geen lege tabel of
+  melding).
+- Dedup met het statische schema: voor elke getoonde live wedstrijd wordt de overeenkomstige
+  statische rij (`data-away-team`/`data-home-team`-match binnen de schematabel) verborgen; bij elke
+  refresh wordt de verborgen set opnieuw bepaald (een afgelopen wedstrijd verdwijnt uit de
+  live-sectie en de statische rij komt terug).
+- Auto-refresh: 30 s zolang er live/preview-wedstrijden zijn, anders 300 s (zelfde regel als §6.2).
+  Netwerkfout → sectie ongewijzigd laten (geen foutmelding; het statische schema blijft leidend).
+  Geen localStorage-cache: de sectie is per definitie "nu".
 
 ---
 

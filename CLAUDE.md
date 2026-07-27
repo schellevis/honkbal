@@ -22,6 +22,7 @@ Honkbal.net is een Python/uv static-site generator die MLB-wedstrijden in Nederl
 Logica-modules (geïmporteerd; exporteren `init`/functies, doen zelf geen self-init):
 
 - `frontend/js/scores.js`: live scores via MLB Stats API (5-daags venster), gecached per dag in `localStorage`, sortering favorieten boven.
+- `frontend/js/live.js`: "nu bezig"-sectie op de avond-tab (SPEC §6.8): live wedstrijden + scores via MLB Stats API (2-daags NY-venster), verbergt dubbele statische schema-rijen; geen localStorage-cache.
 - `frontend/js/standings.js`: standen via MLB Stats API met seizoenjaar dat server-side in de HTML is ingebakken.
 - `frontend/js/loadmore.js`: haalt `<pagina>.tail.json` op (network-first) en plakt extra wedstrijdrijen aan de pagina.
 - `frontend/js/favorites.js`: gedeelde module voor opslaan/lezen/highlighten favoriete teams.
@@ -30,7 +31,7 @@ Logica-modules (geïmporteerd; exporteren `init`/functies, doen zelf geen self-i
 
 Entry-modules (extern geladen via `<script type="module">`, **geen inline blob** — SPEC §6.1; self-init op `DOMContentLoaded`):
 
-- `scores-entry.js`, `standings-entry.js`, `settings-entry.js`: importeren `init` uit de bijbehorende logica-module en starten die op.
+- `scores-entry.js`, `standings-entry.js`, `settings-entry.js`, `live-entry.js`: importeren `init` uit de bijbehorende logica-module en starten die op (`live-entry.js` alleen op pagina's met `page == 'avond'`, incl. `index.html`).
 - `favorites-init.js`: past favoriet-highlights toe en luistert op cross-tab `storage`-events.
 - `register-sw.js`: registreert `/sw.js` (scope `/`, `updateViaCache: "none"`) — vervangt de oude inline registratie (SPEC §6.5).
 
@@ -87,7 +88,7 @@ honkbal/
     feeds.py                   # TEAM_FEEDS: team_id <-> team mapping (30 MLB-teams + all-star)
     teams.py                   # teams_nl, teams_al, slugs, abbreviations, allowlist, TEAM_DIVISIONS/division_of
     rivalries.py               # handmatige rivalry-tiers (1..3) per teampaar (jaarlijks onderhoud)
-    toggles.py                 # SHOW_GAMES=250, LOAD_MORE_BATCH=250, ESPNCAP=3000 etc.
+    toggles.py                 # SHOW_GAMES=250, LOAD_MORE_BATCH=250, LIVE_GRACE_HOURS=4 etc.
     calendar_nl.py             # Nederlandse dag- en maandnamen
   fetch/
     schedule.py                # MLB ticketing-CSV ophalen per team-feed
@@ -118,8 +119,8 @@ frontend/
     style.css                  # custom CSS
     bootstrap-grid.min.css     # grid-hulp
   js/
-    favorites.js  scores.js  standings.js  settings.js  loadmore.js  nav.js  sw.js
-    favorites-init.js  scores-entry.js  standings-entry.js  settings-entry.js  # entry-modules (self-init)
+    favorites.js  scores.js  standings.js  settings.js  loadmore.js  nav.js  live.js  sw.js
+    favorites-init.js  scores-entry.js  standings-entry.js  settings-entry.js  live-entry.js  # entry-modules (self-init)
     register-sw.js                                                             # SW-registratie (geen inline blob)
     util/  diamond.js  dom.js  logo.js  teams.js  time.js
   static/
