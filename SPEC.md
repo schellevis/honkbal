@@ -109,7 +109,7 @@ Game:
   is_tbd:      bool
   source_seq:  int          # [NEW] bron-volgnummer (fetch-/CSV-volgorde); tiebreaker bij een
                             #       identieke dedup-sleutel — zie dedup-regel hieronder
-  enrichment:  Enrichment | None   # [NEW] regelgebaseerde interessantheidsscore (§11); None onder drempel/postseason
+  enrichment:  Enrichment | None   # [NEW] regelgebaseerde interessantheidsscore (§11); None bij postseason/niet-MLB
 ScheduleMeta:
   modified:  datetime       # nieuwste Last-Modified uit bron-headers
   refreshed: datetime       # moment van fetch
@@ -495,21 +495,26 @@ en het bestaan/timestamp van de gegenereerde `docs/`-hoofdbestanden. **Geen** ve
 Met de bètafeature `live` aan (§6.9) toont de avond-tab bovenaan een client-side live-sectie
 met de wedstrijden die op dít moment bezig zijn, inclusief scores, en hernoemt de module het
 navigatielabel van de avond-tab client-side naar **"nu + avond"** (server-side blijft het
-"avond" zolang dit bèta is):
+"avond" zolang dit bèta is). Alleen de tab in de schedule-subnav (`.nav-pills`) wordt hernoemd;
+de topnavigatielink "schema" wijst óók naar `/avond.html` maar behoudt zijn label:
 - Alleen op pagina's met `page == 'avond'` (dus ook `index.html` zolang de default-tab avond is).
 - ES-module `live.js` + entry `live-entry.js` (zelfde patroon als §6.1/§6.2: geen inline blobs).
 - Endpoint als §6.2 (MLB Stats API, `hydrate=linescore,team`), maar met een venster van **2 dagen**
   (NY-vandaag + NY-gisteren): een wedstrijd die in de Nederlandse ochtend nog loopt hoort bij de
   NY-kalenderdag van gisteren.
 - Toont wedstrijden met `classifyGame` ∈ {live, preview} (bezig, warmup of delayed) met dezelfde
-  rij-markup, sortering (favoriet eerst, §6.2) en statuslabels als de scorepagina; `finished` wordt
-  hier **niet** getoond (daarvoor is de scorepagina).
+  rij-markup en statuslabels als de scorepagina; `finished` wordt hier **niet** getoond (daarvoor
+  is de scorepagina). Sortering over de gezamenlijke set: **favoriet eerst**, daarbinnen live vóór
+  preview, daarbinnen vergevorderde inning eerst (live) / vroegste `gameDate` eerst (preview).
 - Kop "nu bezig". Geen live wedstrijden → sectie volledig leeg/verborgen (geen lege tabel of
   melding).
 - Dedup met het statische schema: voor elke getoonde live wedstrijd wordt de overeenkomstige
   statische rij (`data-away-team`/`data-home-team`-match binnen de schematabel) verborgen; bij elke
   refresh wordt de verborgen set opnieuw bepaald (een afgelopen wedstrijd verdwijnt uit de
-  live-sectie en de statische rij komt terug).
+  live-sectie en de statische rij komt terug). Bij meerdere kandidaat-rijen (doubleheader) wint de
+  rij waarvan `data-start` (starttijd in epoch-seconden, build-time op elke getimede rij) het
+  **dichtst** bij de `gameDate` van de API ligt — exact matchen kan niet omdat ticketingfeed en
+  Stats API enkele minuten kunnen verschillen; rijen zonder `data-start` (TBD) zijn laatste keus.
 - Auto-refresh: 30 s zolang er live/preview-wedstrijden zijn, anders 300 s (zelfde regel als §6.2).
   Netwerkfout → sectie ongewijzigd laten (geen foutmelding; het statische schema blijft leidend).
   Geen localStorage-cache: de sectie is per definitie "nu".
@@ -534,13 +539,15 @@ Experimentele features zijn **opt-in** via een "Bètafeatures"-sectie op de inst
 - Bekende features: **`live`** (§6.8) en **`interest`** (hieronder).
 
 **Interessefilter (`interest`):** slider op alle schemapagina's die alleen de interessantste
-wedstrijden toont, op basis van de build-time enrichment-score (§11):
-- Rendering: elke schema-rij met een enrichment-score draagt `data-interest="<score 0..100,
-  afgerond>"`; rijen zonder score (enrichment `None`, bv. postseason) hebben het attribuut niet
-  en tellen client-side als score 0.
-- ES-module `interest.js` + entry `interest-entry.js`. De module injecteert de slider
-  (bereik 0..100) boven de schematabel; drempel 0 = filter uit (alles zichtbaar).
-- Rijen met score < drempel krijgen class `interest-hidden` (CSS `display:none`) — bewust een
+wedstrijden toont, op basis van het build-time enrichment-percentiel (§11.2 punt 3):
+- Rendering: elke schema-rij met enrichment draagt `data-interest="<percentiel 0..100>"`; rijen
+  zonder enrichment (postseason, all-star) hebben het attribuut niet en vallen **buiten het
+  filter** (blijven altijd zichtbaar).
+- ES-module `interest.js` + entry `interest-entry.js`. De module injecteert de slider (bereik
+  0..95, stap 5) boven de schematabel; drempel 0 = filter uit. De badge toont "top X%"
+  (X = 100 − drempel). Draagt geen enkele rij `data-interest` (postseason-fase, §11.1), dan wordt
+  de slider **niet geïnjecteerd** — anders zou elke drempel de hele pagina leegfilteren.
+- Rijen met percentiel < drempel krijgen class `interest-hidden` (CSS `display:none`) — bewust een
   eigen klasse en niet `hidden`, zodat het filter nooit conflicteert met de rij-dedup van de
   live-sectie (§6.8). Dagkoppen waarvan alle rijen verborgen zijn worden mee verborgen.
 - De drempel wordt bewaard in localStorage (`honkbal-interest-threshold`) en bij "meer laden"
@@ -596,19 +603,29 @@ geïmplementeerd (geen AI/ML — deterministische regels op publieke signalen).
 2. **Score** (`enrich_games` → `score_game`): elke reguliere-seizoenwedstrijd krijgt een score 0..100.
    Postseason wordt **overgeslagen** (`clock.now() >= season.windows.ps`) — daar zijn al expliciete
    fase-labels en is elke wedstrijd inherent belangrijk.
-3. **Context**: `render/context.py` exposeert `enrichment_score/label/reasons` op `RowContext`.
+3. **Percentiel**: na het scoren krijgt elke gescoorde game een percentiel 0..100 binnen de
+   gescoorde games van deze build (`Enrichment.percentile`). Het interessefilter (§6.9) werkt op
+   percentielen, niet op ruwe scores: de ruwe verdeling is samengeperst (~20..60 in de praktijk)
+   en verschuift met de seizoensfase en signaalbeschikbaarheid; "drempel 75" betekent op
+   percentielen altijd "toon de top 25%".
+4. **Context**: `render/context.py` exposeert `enrichment_score/label/reasons/percentile` op
+   `RowContext`.
 
-### 11.2 Signalen (opgeteld, geclampt 0..100, drempel 18)
+### 11.2 Signalen (opgeteld, geclampt 0..100; élke reguliere-seizoenwedstrijd krijgt een score)
 - **Rivalry** (`config/rivalries.py`, tier 1..3) → `tier × 8`.
 - **Zelfde league** (+4) / **zelfde divisie** (+6, `config/teams.py::TEAM_DIVISIONS`).
 - **Teamkwaliteit** (winning %): hoge én gelijkwaardige teams scoren hoger (cap 18).
-- **Standings-druk**: nabijheid tot een race (`gamesBack`/`wildCardGamesBack` ≤ 8) en beide top-3 in
-  dezelfde divisie (cap 24).
+- **Standings-druk** (cap 24): het **gemiddelde** van de racedruk per team × 18 — een race-team
+  tegen een kansloos team is half zo interessant als twee race-teams. Racedruk per team: kleinste
+  van divisie-/wildcard-achterstand ≤ 8 games, lineair aflopend; voor een **divisieleider** telt
+  de achterstand van de nummer 2 in zijn divisie (games_back 0 van de leider zelf is geen druk).
+  Reden `playoffrace` pas vanaf gemiddelde druk ≥ 0.5. Plus beide top-3 in dezelfde divisie (+6,
+  `divisiedruk`).
 - **Playoff-odds-spanning**: kans dicht bij 50% en gelijke kansen tussen beide teams (cap 30).
 - **Context-bonus**: weekend (+3), gunstige tijd 19–22u AMS (+3). **TBD** −6.
 
-Labels: `topwedstrijd` (score ≥ 55) · `rivalry` · `playoffrace` · anders `uitgelicht`.
-Onder de drempel (18) → `enrichment = None`.
+Labels (alleen vanaf de uitlicht-drempel, score ≥ 18; daaronder `label = None`):
+`topwedstrijd` (score ≥ 55) · `rivalry` · `playoffrace` · anders `uitgelicht`.
 
 ### 11.3 Robuustheid
 Standings-fetch faalt **zacht** (waarschuwing; valt terug op bestaande cache of basisregels) en

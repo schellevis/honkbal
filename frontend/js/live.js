@@ -1,7 +1,7 @@
 // live.js — "nu bezig"-sectie op de avond-tab (SPEC §6.8).
 // Toont de wedstrijden die op dit moment bezig zijn (incl. warmup/delayed) met live scores,
 // boven het statische schema. Geen localStorage-cache: de sectie is per definitie "nu".
-import { classifyGame, sortLive, renderScoresHtml, refreshIntervalMs } from "./scores.js";
+import { classifyGame, liveScore, renderScoresHtml, refreshIntervalMs } from "./scores.js";
 import { nyDateWindow, mmddyyyy } from "./util/time.js";
 import { escapeHtml } from "./util/dom.js";
 import { isFavoriteMatchup, applyFavoriteHighlights, initFavorites, normalizeTeam } from "./favorites.js";
@@ -37,17 +37,35 @@ export function nextPollDelay(windows, nowMs) {
 
 // Zolang de live-sectie een bètafeature is (SPEC §6.9) heet de avond-tab server-side gewoon
 // "avond"; met de feature aan wordt het label client-side "nu + avond" (SPEC §6.8).
+// Alleen de tab in de schedule-subnav (.nav-pills): de topnavigatielink "schema" wijst óók
+// naar /avond.html en moet "schema" blijven heten.
 export function applyNuAvondLabel(doc) {
   if (!doc.querySelectorAll) return;
-  for (const link of doc.querySelectorAll(".nav-link")) {
-    const href = link.getAttribute ? link.getAttribute("href") ?? "" : "";
-    if (href.includes("/avond.html")) link.textContent = "nu + avond";
+  for (const subnav of doc.querySelectorAll(".nav-pills")) {
+    for (const link of subnav.querySelectorAll(".nav-link")) {
+      const href = link.getAttribute ? link.getAttribute("href") ?? "" : "";
+      if (href.includes("/avond.html")) link.textContent = "nu + avond";
+    }
   }
 }
 
+// Sortering van de "nu bezig"-sectie: favorieten altijd bovenaan (SPEC §6.8), daarbinnen
+// live vóór preview/warmup/delayed, daarbinnen vergevorderde innings eerst / vroegste start.
+export function sortNowSection(games, isFav) {
+  const rank = (g) => (classifyGame(g) === "live" ? 0 : 1);
+  return [...games].sort((a, b) => {
+    const aFav = isFav(a.teams.away.team.name, a.teams.home.team.name) ? 0 : 1;
+    const bFav = isFav(b.teams.away.team.name, b.teams.home.team.name) ? 0 : 1;
+    if (aFav !== bFav) return aFav - bFav;
+    if (rank(a) !== rank(b)) return rank(a) - rank(b);
+    if (rank(a) === 0) return liveScore(a) - liveScore(b);
+    return new Date(a.gameDate) - new Date(b.gameDate);
+  });
+}
+
 // Eén tabel met kop "nu bezig"; lege rijenset → lege string (sectie verborgen, SPEC §6.8).
-export function renderLiveHtml(live, preview, isFav) {
-  const rows = renderScoresHtml(live, [], preview, isFav);
+export function renderLiveHtml(games, isFav) {
+  const rows = renderScoresHtml(games, [], [], isFav);
   if (!rows) return "";
   return (
     `<table class="table table-striped">` +
@@ -59,26 +77,38 @@ export function renderLiveHtml(live, preview, isFav) {
 
 // Dedup met het statische schema: verberg per live wedstrijd één overeenkomstige statische rij
 // (data-away-team/data-home-team-match). Bij elke refresh opnieuw bepaald, dus een afgelopen
-// wedstrijd laat z'n statische rij weer terugkomen. Bij een doubleheader (twee identieke rijen)
-// wordt er per live game precies één verborgen.
+// wedstrijd laat z'n statische rij weer terugkomen. Bij een doubleheader (twee rijen met
+// dezelfde teams) wint de rij waarvan data-start (epoch-seconden, build-time) het dichtst bij
+// de gameDate van de API ligt — exact matchen kan niet omdat ticketingfeed en Stats API
+// enkele minuten kunnen verschillen.
 export function syncHiddenRows(doc, games) {
-  const counts = new Map();
-  for (const g of games) {
-    const key =
-      `${normalizeTeam(g.teams.away.team.name)}|${normalizeTeam(g.teams.home.team.name)}`;
-    counts.set(key, (counts.get(key) ?? 0) + 1);
-  }
+  const wanted = games.map((g) => ({
+    key: `${normalizeTeam(g.teams.away.team.name)}|${normalizeTeam(g.teams.home.team.name)}`,
+    startMs: g.gameDate ? Date.parse(g.gameDate) : NaN,
+  }));
   for (const container of doc.querySelectorAll(".loadmore-container")) {
-    for (const row of container.querySelectorAll("[data-away-team]")) {
-      const key = `${row.dataset.awayTeam}|${row.dataset.homeTeam}`;
-      const remaining = counts.get(key) ?? 0;
-      if (remaining > 0) {
-        row.hidden = true;
-        counts.set(key, remaining - 1);
-      } else {
-        row.hidden = false;
+    const rows = [...container.querySelectorAll("[data-away-team]")];
+    const hidden = new Set();
+    for (const w of wanted) {
+      const candidates = rows.filter(
+        (r) => !hidden.has(r) && `${r.dataset.awayTeam}|${r.dataset.homeTeam}` === w.key
+      );
+      if (!candidates.length) continue;
+      let pick = candidates[0];
+      if (Number.isFinite(w.startMs)) {
+        let best = Infinity;
+        for (const r of candidates) {
+          const rowStart = Number(r.dataset.start);
+          // Rijen zonder bruikbare data-start (TBD) alleen als laatste redmiddel.
+          const dist = Number.isFinite(rowStart)
+            ? Math.abs(rowStart * 1000 - w.startMs)
+            : Number.MAX_SAFE_INTEGER;
+          if (dist < best) { best = dist; pick = r; }
+        }
       }
+      hidden.add(pick);
     }
+    for (const row of rows) row.hidden = hidden.has(row);
   }
 }
 
@@ -119,12 +149,14 @@ export async function init(doc, { fetch: fetchFn } = {}) {
 
     // Netwerkfout → sectie ongewijzigd laten; het statische schema blijft leidend (SPEC §6.8).
     if (allOk) {
-      const live = sortLive(games.filter((g) => classifyGame(g) === "live"), isFav);
-      const preview = games.filter((g) => classifyGame(g) === "preview");
-      sawLive = live.length + preview.length > 0;
-      container.innerHTML = renderLiveHtml(live, preview, isFav);
+      const current = sortNowSection(
+        games.filter((g) => ["live", "preview"].includes(classifyGame(g))),
+        isFav
+      );
+      sawLive = current.length > 0;
+      container.innerHTML = renderLiveHtml(current, isFav);
       applyFavoriteHighlights(container);
-      syncHiddenRows(doc, [...live, ...preview]);
+      syncHiddenRows(doc, current);
     }
   }
 

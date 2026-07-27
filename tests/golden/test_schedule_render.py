@@ -54,18 +54,29 @@ def test_logo_and_name_rendered_and_escaped():
     assert "/img/red+sox-fs8.png?v1" in html
 
 
-def test_row_data_interest_from_enrichment():
-    """SPEC §6.9: rijen met enrichment dragen een afgeronde data-interest-score; zonder niet."""
+def test_row_data_interest_from_enrichment_percentile():
+    """SPEC §6.9: rijen met enrichment dragen het percentiel als data-interest; zonder niet."""
     from honkbal.models import Enrichment
 
     scored = Game(date_ams=date(2026, 6, 21), time_ams=time(20, 5), hour_ams=20,
                   date_et=date(2026, 6, 21), away="Red Sox", home="Yankees",
                   is_tbd=False, source_seq=0,
-                  enrichment=Enrichment(score=41.6, label="topper", reasons=("rivalry",)))
+                  enrichment=Enrichment(score=41.6, label="topper", reasons=("rivalry",),
+                                        percentile=88))
     plain = _g(date(2026, 6, 21), 20, "Mets", "Phillies", seq=1)
     html = _render([scored, plain])
-    assert 'data-interest="42"' in html
+    assert 'data-interest="88"' in html
     assert html.count("data-interest") == 1  # rij zonder enrichment krijgt geen attribuut
+
+
+def test_row_data_start_epoch_for_timed_games():
+    """SPEC §6.8: getimede rijen dragen data-start (dedup live-sectie bij doubleheaders)."""
+    html = _render([_g(date(2026, 6, 21), 20, "Red Sox", "Yankees")])
+    from datetime import datetime
+
+    from honkbal.clock import AMSTERDAM
+    ts = int(datetime(2026, 6, 21, 20, 5, tzinfo=AMSTERDAM).timestamp())
+    assert f'data-start="{ts}"' in html
 
 
 def test_empty_state_message():

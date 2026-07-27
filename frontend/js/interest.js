@@ -1,6 +1,8 @@
 // interest.js — interessefilter-slider op schemapagina's (SPEC §6.9, bètafeature).
-// Schema-rijen dragen een build-time data-interest-score (enrichment, SPEC §11); de slider
-// verbergt rijen onder de gekozen drempel. Rijen zonder score tellen als 0.
+// Schema-rijen dragen een build-time data-interest-percentiel (enrichment, SPEC §11); de
+// slider verbergt rijen onder het gekozen percentiel ("drempel 75" = toon de top 25%).
+// Rijen zónder attribuut (postseason, all-star) vallen buiten het filter en blijven altijd
+// zichtbaar; draagt geen enkele rij een score (postseason-fase), dan komt er geen slider.
 
 export const THRESHOLD_KEY = "honkbal-interest-threshold";
 
@@ -14,9 +16,12 @@ export function setThreshold(value) {
   globalThis.localStorage.setItem(THRESHOLD_KEY, String(value));
 }
 
+// Percentiel van een rij, of null voor rijen zonder data-interest (buiten het filter).
 export function rowScore(row) {
-  const n = Number(row.dataset?.interest ?? 0);
-  return Number.isFinite(n) ? n : 0;
+  const raw = row.dataset?.interest;
+  if (raw === undefined) return null;
+  const n = Number(raw);
+  return Number.isFinite(n) ? n : null;
 }
 
 // Verbergt via een eigen CSS-klasse (niet row.hidden), zodat het filter nooit vecht met de
@@ -24,7 +29,8 @@ export function rowScore(row) {
 export function applyThreshold(doc, threshold) {
   for (const table of doc.querySelectorAll(".loadmore-container")) {
     for (const row of table.querySelectorAll("[data-away-team]")) {
-      row.classList.toggle("interest-hidden", rowScore(row) < threshold);
+      const score = rowScore(row);
+      row.classList.toggle("interest-hidden", score !== null && score < threshold);
     }
     // Dagkoppen zonder zichtbare rijen mee verbergen (thead hoort bij de volgende tbody).
     for (const tbody of table.querySelectorAll("tbody")) {
@@ -39,12 +45,14 @@ export function applyThreshold(doc, threshold) {
 export function init(doc) {
   const table = doc.querySelector ? doc.querySelector(".loadmore-container") : null;
   if (!table || !table.insertAdjacentHTML) return;
+  // Geen enkele gescoorde rij (postseason-fase, SPEC §11) → filter heeft niets te filteren.
+  if (!table.querySelector("[data-interest]")) return;
 
   table.insertAdjacentHTML(
     "beforebegin",
     `<div class="interest-filter">` +
       `<label class="interest-filter-label" for="interest-slider">interessefilter</label>` +
-      `<input type="range" id="interest-slider" min="0" max="100" step="1">` +
+      `<input type="range" id="interest-slider" min="0" max="95" step="5">` +
       `<span id="interest-value" class="interest-filter-value" aria-live="polite"></span>` +
       `</div>`
   );
@@ -55,7 +63,7 @@ export function init(doc) {
 
   function apply(threshold) {
     if (valueEl) {
-      valueEl.textContent = threshold > 0 ? `≥ ${threshold}` : "uit";
+      valueEl.textContent = threshold > 0 ? `top ${100 - threshold}%` : "uit";
       if (valueEl.classList) valueEl.classList.toggle("is-active", threshold > 0);
     }
     // Gevulde track tot de thumb (CSS leest --interest-fill), zodat de slider dezelfde

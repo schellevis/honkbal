@@ -10,9 +10,9 @@ beforeEach(async () => {
 });
 afterEach(() => { restoreFetch(); restoreDom(); });
 
-function liveGame(away, home, { awayScore = 1, homeScore = 0 } = {}) {
+function liveGame(away, home, { awayScore = 1, homeScore = 0, gameDate = "2026-07-27T00:10:00Z" } = {}) {
   return {
-    gameDate: "2026-07-27T00:10:00Z",
+    gameDate,
     status: { abstractGameState: "Live", detailedState: "In Progress" },
     linescore: { currentInning: 5, isTopInning: true, outs: 1, offense: {} },
     teams: {
@@ -22,9 +22,20 @@ function liveGame(away, home, { awayScore = 1, homeScore = 0 } = {}) {
   };
 }
 
+function previewGame(away, home, { gameDate = "2026-07-27T01:10:00Z" } = {}) {
+  return {
+    gameDate,
+    status: { abstractGameState: "Preview", detailedState: "Warmup" },
+    teams: {
+      away: { score: 0, team: { name: away, abbreviation: "AWY" } },
+      home: { score: 0, team: { name: home, abbreviation: "HOM" } },
+    },
+  };
+}
+
 // --- renderLiveHtml ---
 test("renderLiveHtml renders a 'nu bezig' table with scores for live games", () => {
-  const html = live.renderLiveHtml([liveGame("New York Mets", "Philadelphia Phillies")], [], () => false);
+  const html = live.renderLiveHtml([liveGame("New York Mets", "Philadelphia Phillies")], () => false);
   assert.match(html, /nu bezig/);
   assert.match(html, /data-away-team="mets"/);
   assert.match(html, /data-home-team="phillies"/);
@@ -32,7 +43,26 @@ test("renderLiveHtml renders a 'nu bezig' table with scores for live games", () 
 });
 
 test("renderLiveHtml returns empty string when there is nothing live", () => {
-  assert.equal(live.renderLiveHtml([], [], () => false), "");
+  assert.equal(live.renderLiveHtml([], () => false), "");
+});
+
+// --- sortNowSection (SPEC §6.8: favoriet eerst, dan live vóór preview) ---
+test("sortNowSection puts a favorite live game above a non-favorite preview", () => {
+  const fav = liveGame("New York Yankees", "Boston Red Sox");
+  const other = previewGame("Chicago Cubs", "Milwaukee Brewers");
+  const isFav = (away) => away.includes("Yankees");
+  const order = live.sortNowSection([other, fav], isFav);
+  assert.deepEqual(order.map((g) => g.teams.away.team.name),
+    ["New York Yankees", "Chicago Cubs"]);
+});
+
+test("sortNowSection puts a favorite preview above non-favorite live games", () => {
+  const favPreview = previewGame("New York Yankees", "Boston Red Sox");
+  const otherLive = liveGame("Chicago Cubs", "Milwaukee Brewers");
+  const isFav = (away) => away.includes("Yankees");
+  const order = live.sortNowSection([otherLive, favPreview], isFav);
+  assert.deepEqual(order.map((g) => g.teams.away.team.name),
+    ["New York Yankees", "Chicago Cubs"]);
 });
 
 // --- syncHiddenRows ---
@@ -67,23 +97,52 @@ test("syncHiddenRows hides only one row per live game for a doubleheader", () =>
   assert.equal([row1, row2].filter((r) => r.hidden).length, 1);
 });
 
+test("syncHiddenRows hides the doubleheader row closest to the API start time", () => {
+  const apiStart = "2026-07-27T00:10:00Z";
+  const apiSec = Date.parse(apiStart) / 1000;
+  const game1 = makeRow({ away: "mets", home: "phillies" });
+  game1.dataset.start = String(apiSec - 6 * 3600); // middaggame, allang klaar
+  const game2 = makeRow({ away: "mets", home: "phillies" });
+  game2.dataset.start = String(apiSec - 300); // ticketingtijd wijkt 5 min af van de API
+  scheduleTable([game1, game2]);
+
+  live.syncHiddenRows(globalThis.document, [
+    liveGame("New York Mets", "Philadelphia Phillies", { gameDate: apiStart }),
+  ]);
+  assert.equal(game1.hidden, false, "game 1 (klaar) blijft zichtbaar in het schema");
+  assert.equal(game2.hidden, true, "game 2 (live) wordt gededupliceerd");
+});
+
 // --- applyNuAvondLabel ---
-test("applyNuAvondLabel renames only the avond tab link", () => {
+function navLink(href, text) {
+  const link = globalThis.document.createElement("a");
+  link.classList.add("nav-link");
+  link.setAttribute("href", href);
+  link.textContent = text;
+  return link;
+}
+
+test("applyNuAvondLabel renames the subnav avond tab but not the top-nav schema link", () => {
   const doc = globalThis.document;
-  const avond = doc.createElement("a");
-  avond.classList.add("nav-link");
-  avond.setAttribute("href", "/avond.html?v1");
-  avond.textContent = "avond";
-  const nacht = doc.createElement("a");
-  nacht.classList.add("nav-link");
-  nacht.setAttribute("href", "/nacht.html?v1");
-  nacht.textContent = "nacht";
-  doc.body.appendChild(avond);
-  doc.body.appendChild(nacht);
+  // Topnavigatie: "schema" verwijst óók naar /avond.html en moet ongemoeid blijven.
+  const topnav = doc.createElement("ul");
+  topnav.classList.add("nav-top");
+  const schema = navLink("/avond.html?v1", "schema");
+  topnav.appendChild(schema);
+  doc.body.appendChild(topnav);
+
+  const subnav = doc.createElement("ul");
+  subnav.classList.add("nav-pills");
+  const avond = navLink("/avond.html?v1", "avond");
+  const nacht = navLink("/nacht.html?v1", "nacht");
+  subnav.appendChild(avond);
+  subnav.appendChild(nacht);
+  doc.body.appendChild(subnav);
 
   live.applyNuAvondLabel(doc);
   assert.equal(avond.textContent, "nu + avond");
   assert.equal(nacht.textContent, "nacht");
+  assert.equal(schema.textContent, "schema", "topnav-label mag niet wijzigen");
 });
 
 // --- poll-vensters (SPEC §6.8) ---

@@ -12,8 +12,9 @@ class Enrichment(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     score: float
-    label: str
+    label: str | None = None  # None onder de uitlicht-drempel (18): niet vermeldenswaardig
     reasons: tuple[str, ...] = ()
+    percentile: int | None = None  # positie binnen de gescoorde games van deze build (SPEC §6.9)
 
 
 class Game(BaseModel):

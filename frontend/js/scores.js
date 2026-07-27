@@ -25,7 +25,7 @@ export function classifyGame(game) {
   return null;
 }
 
-function liveScore(game) {
+export function liveScore(game) {
   const ls = game.linescore;
   const inning = ls?.currentInning ?? 0;
   const isTop = ls?.isTopInning ?? true;

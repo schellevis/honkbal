@@ -45,12 +45,11 @@ test("applyThreshold with threshold 0 shows everything again", () => {
   assert.equal(low.classList.contains("interest-hidden"), false);
 });
 
-test("rows without a data-interest score count as 0", () => {
+test("rows without a data-interest attribute are exempt from the filter", () => {
+  // Postseason/all-star-rijen hebben geen percentiel (SPEC §6.9) en mogen nooit verdwijnen.
   const unscored = scoredRow("cubs", "brewers", undefined);
   scheduleTable([unscored]);
-  interest.applyThreshold(globalThis.document, 1);
-  assert.equal(unscored.classList.contains("interest-hidden"), true);
-  interest.applyThreshold(globalThis.document, 0);
+  interest.applyThreshold(globalThis.document, 95);
   assert.equal(unscored.classList.contains("interest-hidden"), false);
 });
 

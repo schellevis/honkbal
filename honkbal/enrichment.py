@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from bisect import bisect_left
 from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict
@@ -61,7 +62,36 @@ def enrich_games(
     for game in games:
         enrichment = score_game(game, standings=st, playoff_odds=odds)
         enriched.append(game.model_copy(update={"enrichment": enrichment}))
-    return enriched
+    return _assign_percentiles(enriched)
+
+
+def _assign_percentiles(games: list[Game]) -> list[Game]:
+    """Percentiel (0..100) van elke score binnen de gescoorde games van deze build.
+
+    Het interessefilter (SPEC §6.9) werkt op percentielen in plaats van ruwe scores: de ruwe
+    verdeling is samengeperst (~20..60) en verschuift per seizoensfase/signaalbeschikbaarheid,
+    waardoor een vaste drempel op de ruwe score dode sliderzones geeft. "Drempel 75" betekent
+    op percentielen altijd "toon de top 25%".
+    """
+    scores = sorted(g.enrichment.score for g in games if g.enrichment is not None)
+    n = len(scores)
+    if n == 0:
+        return games
+
+    def pct(score: float) -> int:
+        if n == 1:
+            return 50
+        below = bisect_left(scores, score)
+        return round(100 * below / (n - 1))
+
+    out: list[Game] = []
+    for g in games:
+        if g.enrichment is None:
+            out.append(g)
+        else:
+            e = g.enrichment.model_copy(update={"percentile": pct(g.enrichment.score)})
+            out.append(g.model_copy(update={"enrichment": e}))
+    return out
 
 
 def score_game(
@@ -102,7 +132,10 @@ def score_game(
 
     if _both_known(away_st, home_st):
         score += _team_quality_score(away_st, home_st, reasons)
-        score += _standings_pressure_score(away_st, home_st, same_division, reasons)
+        score += _standings_pressure_score(
+            away_st, home_st, same_division, reasons,
+            standings=standings, away=away, home=home,
+        )
 
     if away_odds is not None and home_odds is not None:
         score += _playoff_pressure_score(away_odds, home_odds, reasons)
@@ -118,13 +151,13 @@ def score_game(
     if game.is_tbd:
         score -= 6
 
+    # Geen cutoff: élke reguliere-seizoenwedstrijd krijgt een score (nodig voor het
+    # percentiel-gebaseerde interessefilter, SPEC §6.9). Alleen het label kent de
+    # uitlicht-drempel (18): daaronder is de wedstrijd niet vermeldenswaardig.
     score = round(max(0.0, min(100.0, score)), 1)
-    if score < 18:
-        return None
-
     return Enrichment(
         score=score,
-        label=_label_for(score, reasons),
+        label=_label_for(score, reasons) if score >= 18 else None,
         reasons=tuple(dict.fromkeys(reasons)),
     )
 
@@ -153,17 +186,18 @@ def _standings_pressure_score(
     b: TeamStanding,
     same_division: bool,
     reasons: list[str],
+    *,
+    standings: StandingsByTeam,
+    away: str,
+    home: str,
 ) -> float:
-    score = 0.0
-    pressure_values = [
-        _race_pressure(a.games_back),
-        _race_pressure(a.wild_card_games_back),
-        _race_pressure(b.games_back),
-        _race_pressure(b.wild_card_games_back),
-    ]
-    pressure = max(pressure_values)
-    if pressure > 0:
-        score += pressure * 18
+    # Gemiddelde van de druk per team (niet het maximum): een race-team tegen een kansloos
+    # team is half zo interessant als twee race-teams tegen elkaar.
+    pressure = (
+        _team_race_pressure(away, a, standings) + _team_race_pressure(home, b, standings)
+    ) / 2
+    score = pressure * 18
+    if pressure >= 0.5:
         reasons.append("playoffrace")
 
     if same_division and a.division_rank is not None and b.division_rank is not None:
@@ -172,6 +206,29 @@ def _standings_pressure_score(
             reasons.append("divisiedruk")
 
     return min(score, 24.0)
+
+
+def _team_race_pressure(team: str, st: TeamStanding, standings: StandingsByTeam) -> float:
+    """Playoffdruk 0..1 voor één team.
+
+    Een divisieleider heeft per definitie games_back 0; zijn druk komt van de achterstand van
+    de nummer 2 in dezelfde divisie (staat die 12 games achter, dan is er geen race). Voor de
+    rest telt de kleinste van divisie- en wildcard-achterstand.
+    """
+    if st.division_rank == 1:
+        division = division_of(team)
+        if division is None:
+            return 0.0
+        chaser_gbs = [
+            other.games_back
+            for slug, other in standings.items()
+            if slug != team
+            and other.division_rank == 2
+            and other.games_back is not None
+            and division_of(slug) == division
+        ]
+        return _race_pressure(min(chaser_gbs)) if chaser_gbs else 0.0
+    return max(_race_pressure(st.games_back), _race_pressure(st.wild_card_games_back))
 
 
 def _playoff_pressure_score(

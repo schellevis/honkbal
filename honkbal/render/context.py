@@ -2,13 +2,13 @@ from __future__ import annotations
 
 import itertools
 from dataclasses import dataclass, field
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 
 from markupsafe import Markup
 
 import honkbal.render.labels as _labels
-from honkbal.clock import Clock
+from honkbal.clock import AMSTERDAM, Clock
 from honkbal.config.teams import normalize_team
 from honkbal.models import Game, PostseasonData
 from honkbal.render.filters import should_render, uitzondering_code
@@ -32,6 +32,8 @@ class RowContext:
     enrichment_score: float | None = None
     enrichment_label: str | None = None
     enrichment_reasons: tuple[str, ...] = ()
+    enrichment_percentile: int | None = None  # data-interest (SPEC §6.9)
+    start_epoch: int | None = None  # starttijd in epoch-seconden; dedup live-sectie (SPEC §6.8)
 
 
 @dataclass(frozen=True)
@@ -93,6 +95,11 @@ def build_page_context(
         rows: list[RowContext] = []
         for g in day_list:
             time_label = g.time_ams.strftime("%H:%M") if g.time_ams is not None else "TBD"
+            start_epoch = None
+            if g.time_ams is not None:
+                start_epoch = int(
+                    datetime.combine(g.date_ams, g.time_ams, tzinfo=AMSTERDAM).timestamp()
+                )
 
             away_logo = logo_html(g.away, img_dir=img_dir, asset_version=asset_version)
             home_logo = logo_html(g.home, img_dir=img_dir, asset_version=asset_version)
@@ -120,6 +127,10 @@ def build_page_context(
                 enrichment_score=g.enrichment.score if g.enrichment is not None else None,
                 enrichment_label=g.enrichment.label if g.enrichment is not None else None,
                 enrichment_reasons=g.enrichment.reasons if g.enrichment is not None else (),
+                enrichment_percentile=(
+                    g.enrichment.percentile if g.enrichment is not None else None
+                ),
+                start_epoch=start_epoch,
             ))
 
         days.append(DayBlock(
