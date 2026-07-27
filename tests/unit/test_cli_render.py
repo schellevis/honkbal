@@ -6,6 +6,7 @@ from unittest.mock import patch
 
 from honkbal.cli import _copy_static_assets, main
 from honkbal.clock import AMSTERDAM, FrozenClock
+from honkbal.models import Game
 
 FIXTURE_DATA = Path(__file__).parent.parent / "fixtures" / "cli" / "data"
 
@@ -244,3 +245,62 @@ def test_copy_static_assets_copies_nested_subdirs_recursively(tmp_path):
     assert (out / "fonts" / "main.woff2").is_file(), (
         "fonts/main.woff2 missing — nested static subdirs must be copied recursively"
     )
+
+
+def test_live_poll_windows_selects_relevant_start_times():
+    """SPEC §6.8: poll-vensters = starts van 5u terug tot 48u vooruit, TBD overgeslagen."""
+    from datetime import datetime, time
+
+    from honkbal.render.pages import live_poll_windows
+
+    clock = FrozenClock(datetime(2026, 6, 21, 12, 0, tzinfo=AMSTERDAM))
+
+    def g(day, hh_mm, *, tbd=False, seq=0):
+        hh, mm = hh_mm
+        return Game(
+            date_ams=day, time_ams=None if tbd else time(hh, mm),
+            hour_ams=None if tbd else hh, date_et=day,
+            away="Mets", home="Phillies", is_tbd=tbd, source_seq=seq,
+        )
+
+    from datetime import date
+    today = date(2026, 6, 21)
+    games = [
+        g(today, (13, 0), seq=0),                 # 1u vooruit → mee
+        g(today, (9, 0), seq=1),                  # 3u geleden (mogelijk bezig) → mee
+        g(today, (6, 0), seq=2),                  # 6u geleden → niet mee
+        g(date(2026, 6, 24), (20, 0), seq=3),     # >48u vooruit → niet mee
+        g(today, (0, 0), tbd=True, seq=4),        # TBD → geen venster
+    ]
+    result = json.loads(live_poll_windows(games, clock=clock))
+    expected = sorted({
+        int(datetime(2026, 6, 21, 13, 0, tzinfo=AMSTERDAM).timestamp()),
+        int(datetime(2026, 6, 21, 9, 0, tzinfo=AMSTERDAM).timestamp()),
+    })
+    assert result == expected
+
+
+def test_avond_page_carries_live_windows_attribute(tmp_path):
+    from datetime import datetime
+
+    header = "START DATE,START TIME,START TIME ET,SUBJECT"
+    row = "06/21/26,01:05 PM,03:00 PM,Mets at Phillies"  # AMS 2026-06-21 21:00
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    (data_dir / "all.csv").write_text(header + "\n" + row + "\n", encoding="utf-8")
+    (data_dir / "headers.json").write_text("{}", encoding="utf-8")
+
+    out = tmp_path / "docs"
+    clock = FrozenClock(datetime(2026, 6, 21, 12, 0, tzinfo=AMSTERDAM))
+    rc = main(
+        ["--now", "2026-06-21T12:00:00+02:00", "render",
+         "--out", str(out), "--data-dir", str(data_dir)],
+        clock=clock,
+    )
+    assert rc == 0
+    ts = int(datetime(2026, 6, 21, 21, 0, tzinfo=AMSTERDAM).timestamp())
+    avond = (out / "avond.html").read_text(encoding="utf-8")
+    assert f'data-live-windows="[{ts}]"' in avond
+    # Alleen op de avond-tab (incl. index); nacht heeft geen live-sectie.
+    assert "data-live-windows" in (out / "index.html").read_text(encoding="utf-8")
+    assert "data-live-windows" not in (out / "nacht.html").read_text(encoding="utf-8")

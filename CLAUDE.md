@@ -22,7 +22,7 @@ Honkbal.net is een Python/uv static-site generator die MLB-wedstrijden in Nederl
 Logica-modules (geïmporteerd; exporteren `init`/functies, doen zelf geen self-init):
 
 - `frontend/js/scores.js`: live scores via MLB Stats API (5-daags venster), gecached per dag in `localStorage`, sortering favorieten boven.
-- `frontend/js/live.js`: "nu bezig"-sectie op de avond-tab (SPEC §6.8, bètafeature `live`): live wedstrijden + scores via MLB Stats API (2-daags NY-venster), verbergt dubbele statische schema-rijen, hernoemt de avond-tab client-side naar "nu + avond"; geen localStorage-cache.
+- `frontend/js/live.js`: "nu bezig"-sectie op de avond-tab (SPEC §6.8, bètafeature `live`): live wedstrijden + scores via MLB Stats API (2-daags NY-venster), verbergt dubbele statische schema-rijen, hernoemt de avond-tab client-side naar "nu + avond"; geen localStorage-cache. Pollt alleen binnen build-time meegegeven poll-vensters (`data-live-windows`, starttijd + 5u per game); daarbuiten geen API-calls.
 - `frontend/js/interest.js`: interessefilter-slider op schemapagina's (SPEC §6.9, bètafeature `interest`): verbergt rijen met `data-interest`-score onder de gekozen drempel (class `interest-hidden`).
 - `frontend/js/beta.js`: bètafeature-opslag (`honkbal-beta-features` in `localStorage`, SPEC §6.9); checkboxes op de instellingenpagina (`name="beta"`, direct opgeslagen).
 - `frontend/js/standings.js`: standen via MLB Stats API met seizoenjaar dat server-side in de HTML is ingebakken.

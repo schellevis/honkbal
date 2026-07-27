@@ -6,6 +6,35 @@ import { nyDateWindow, mmddyyyy } from "./util/time.js";
 import { escapeHtml } from "./util/dom.js";
 import { isFavoriteMatchup, applyFavoriteHighlights, initFavorites, normalizeTeam } from "./favorites.js";
 
+// Poll-venster per game (moet gelijk zijn aan LIVE_WINDOW_HOURS in config/toggles.py):
+// binnen [start, start + 5u] kan een wedstrijd bezig zijn, daarbuiten pollen we niet.
+export const LIVE_WINDOW_MS = 5 * 3600 * 1000;
+
+// data-live-windows-attribuut (JSON-array van epoch-seconden, SPEC §6.8) → array of null.
+// null = attribuut afwezig/onleesbaar → altijd pollen (gedrag van vóór de venster-gating).
+export function parseLiveWindows(raw) {
+  if (raw == null) return null;
+  try {
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return null;
+    return parsed.filter((s) => Number.isFinite(s));
+  } catch {
+    return null;
+  }
+}
+
+// 0 = nu binnen een venster (pollen); >0 = ms tot de eerstvolgende vensterstart (wachten);
+// null = geen venster meer over (stoppen; een nieuwe build/reload brengt een verse lijst).
+export function nextPollDelay(windows, nowMs) {
+  let next = null;
+  for (const startSec of windows) {
+    const startMs = startSec * 1000;
+    if (nowMs >= startMs && nowMs < startMs + LIVE_WINDOW_MS) return 0;
+    if (startMs > nowMs && (next === null || startMs < next)) next = startMs;
+  }
+  return next === null ? null : next - nowMs;
+}
+
 // Zolang de live-sectie een bètafeature is (SPEC §6.9) heet de avond-tab server-side gewoon
 // "avond"; met de feature aan wordt het label client-side "nu + avond" (SPEC §6.8).
 export function applyNuAvondLabel(doc) {
@@ -61,6 +90,13 @@ export async function init(doc, { fetch: fetchFn } = {}) {
   initFavorites(doc);
   const isFav = (away, home) => isFavoriteMatchup(away, home);
 
+  const windows = parseLiveWindows(
+    container.getAttribute ? container.getAttribute("data-live-windows") : null
+  );
+  // "Status wint van het venster": zagen we live games, dan blijven we pollen tot de API
+  // zegt dat ze klaar zijn — ook als het 5-uursvenster inmiddels dicht is (uitlopers).
+  let sawLive = false;
+
   async function fetchAndRender() {
     // 2-daags venster (NY-vandaag + NY-gisteren): een wedstrijd die in de Nederlandse ochtend
     // nog loopt hoort bij de NY-kalenderdag van gisteren (SPEC §6.8).
@@ -81,19 +117,29 @@ export async function init(doc, { fetch: fetchFn } = {}) {
       }
     }
 
-    let hasLive = false;
     // Netwerkfout → sectie ongewijzigd laten; het statische schema blijft leidend (SPEC §6.8).
     if (allOk) {
       const live = sortLive(games.filter((g) => classifyGame(g) === "live"), isFav);
       const preview = games.filter((g) => classifyGame(g) === "preview");
-      hasLive = live.length + preview.length > 0;
+      sawLive = live.length + preview.length > 0;
       container.innerHTML = renderLiveHtml(live, preview, isFav);
       applyFavoriteHighlights(container);
       syncHiddenRows(doc, [...live, ...preview]);
     }
-    return setTimeout(fetchAndRender, refreshIntervalMs(hasLive));
+  }
+
+  async function tick() {
+    const inWindow =
+      windows === null || sawLive || nextPollDelay(windows, Date.now()) === 0;
+    if (inWindow) {
+      await fetchAndRender();
+      return setTimeout(tick, refreshIntervalMs(sawLive));
+    }
+    const delay = nextPollDelay(windows, Date.now());
+    if (delay === null) return; // geen vensters meer over — niets te verwachten
+    return setTimeout(tick, delay);
   }
 
   // Return the in-flight promise so callers/tests can await the first render cycle.
-  return fetchAndRender();
+  return tick();
 }

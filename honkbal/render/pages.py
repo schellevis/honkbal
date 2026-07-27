@@ -1,12 +1,13 @@
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from pathlib import Path
 
 from honkbal.clock import AMSTERDAM, Clock
 from honkbal.config.teams import TEAMS_AL, TEAMS_NL, team_slug
-from honkbal.config.toggles import LIVE_GRACE_HOURS
+from honkbal.config.toggles import LIVE_GRACE_HOURS, LIVE_POLL_HORIZON_HOURS, LIVE_WINDOW_HOURS
 from honkbal.models import Game, PostseasonData, ScheduleMeta
 from honkbal.render.context import PageContext, build_page_context, default_tab
 from honkbal.render.env import make_env
@@ -40,6 +41,26 @@ def versioned_js_root(asset_version: str) -> str:
     return f"/js/v/{asset_version}"
 
 
+def live_poll_windows(games: list[Game], *, clock: Clock) -> str:
+    """JSON-array van starttijden (epoch-seconden, gededupt en gesorteerd) waarrond de
+    live-sectie de MLB-API mag pollen (SPEC §6.8): starts van LIVE_WINDOW_HOURS terug
+    (mogelijk nog bezig) tot LIVE_POLL_HORIZON_HOURS vooruit. Berekend over de vólledige
+    gameslijst — nachtgames staan niet op de avond-pagina maar zijn juist 's ochtends live.
+    TBD-games (geen starttijd) kunnen geen venster leveren en worden overgeslagen.
+    """
+    now = clock.now()
+    lo = now - timedelta(hours=LIVE_WINDOW_HOURS)
+    hi = now + timedelta(hours=LIVE_POLL_HORIZON_HOURS)
+    starts = set()
+    for g in games:
+        if g.is_tbd or g.time_ams is None:
+            continue
+        start = datetime.combine(g.date_ams, g.time_ams, tzinfo=AMSTERDAM)
+        if lo <= start <= hi:
+            starts.add(int(start.timestamp()))
+    return json.dumps(sorted(starts), separators=(",", ":"))
+
+
 def render_schedule_page(
     ctx: PageContext | InlineContext,
     *,
@@ -48,6 +69,7 @@ def render_schedule_page(
     season: ActiveSeason,
     inline_days=None,
     tail_count: int = 0,
+    live_windows: str | None = None,
 ) -> str:
     env = make_env()
     tmpl = env.get_template("schedule.html")
@@ -62,6 +84,7 @@ def render_schedule_page(
         tail_count=tail_count,
         has_postseason_footnote=ctx.has_postseason_footnote,
         teams=nav_team_list(),
+        live_windows=live_windows,
     )
 
 
@@ -98,6 +121,7 @@ def render_all_schedule_pages(
     img_dir: Path,
     asset_version: str,
     out_dir: Path,
+    live_windows: str | None = None,
 ) -> dict[str, str]:
     from honkbal.render.tail import build_tail_json, split_context, write_tail
 
@@ -113,7 +137,7 @@ def render_all_schedule_pages(
         tail_count = sum(len(d.rows) for d in remaining)
         html = render_schedule_page(
             ctx, asset_version=asset_version, clock=clock, season=season,
-            inline_days=inline_ctx.days, tail_count=tail_count,
+            inline_days=inline_ctx.days, tail_count=tail_count, live_windows=live_windows,
         )
         (out_dir / f"{page}.html").write_text(html, encoding="utf-8")
         results[page] = html
@@ -135,7 +159,7 @@ def render_all_schedule_pages(
     tail_count_idx = sum(len(d.rows) for d in remaining_idx)
     html_idx = render_schedule_page(
         ctx_idx, asset_version=asset_version, clock=clock, season=season,
-        inline_days=inline_idx.days, tail_count=tail_count_idx,
+        inline_days=inline_idx.days, tail_count=tail_count_idx, live_windows=live_windows,
     )
     (out_dir / "index.html").write_text(html_idx, encoding="utf-8")
     results["index"] = html_idx
@@ -233,6 +257,10 @@ def render_site(
         img_dir=_img_dir,
         asset_version=asset_version,
         out_dir=out_dir,
+        # Poll-vensters over de óngefilterde lijst: de lookback (5u) is ruimer dan het
+        # grace-window (4u), dus een net weggefilterde-maar-mogelijk-nog-lopende game
+        # telt hier nog mee.
+        live_windows=live_poll_windows(games, clock=clock),
     )
     report.written.extend(f"{k}.html" for k in rendered)
 

@@ -12,7 +12,7 @@
   {% endif %}
 {% endif %}
 {% if page == 'avond' %}
-<div id="live-container"></div>
+<div id="live-container"{% if live_windows %} data-live-windows="{{ live_windows }}"{% endif %}></div>
 {% endif %}
 {% if is_empty %}
 <p>Geen wedstrijden beschikbaar 😢</p>

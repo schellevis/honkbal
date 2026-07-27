@@ -86,6 +86,51 @@ test("applyNuAvondLabel renames only the avond tab link", () => {
   assert.equal(nacht.textContent, "nacht");
 });
 
+// --- poll-vensters (SPEC §6.8) ---
+test("parseLiveWindows accepts a JSON array and falls back to null on garbage", () => {
+  assert.deepEqual(live.parseLiveWindows("[100,200]"), [100, 200]);
+  assert.deepEqual(live.parseLiveWindows("[]"), []);
+  assert.equal(live.parseLiveWindows(null), null);
+  assert.equal(live.parseLiveWindows("geen json{"), null);
+  assert.equal(live.parseLiveWindows('{"a":1}'), null);
+});
+
+test("nextPollDelay: in window → 0, before window → wait, after all windows → null", () => {
+  const start = 1_000_000; // epoch-seconden
+  const windows = [start];
+  const startMs = start * 1000;
+  assert.equal(live.nextPollDelay(windows, startMs + 1), 0);
+  assert.equal(live.nextPollDelay(windows, startMs + live.LIVE_WINDOW_MS - 1), 0);
+  assert.equal(live.nextPollDelay(windows, startMs - 60_000), 60_000);
+  assert.equal(live.nextPollDelay(windows, startMs + live.LIVE_WINDOW_MS + 1), null);
+  assert.equal(live.nextPollDelay([], startMs), null);
+});
+
+test("init does not call the API outside every poll window", async () => {
+  const { doc, container } = containerDoc();
+  container.setAttribute("data-live-windows", "[]");
+  let calls = 0;
+  const timer = await live.init(doc, { fetch: async () => { calls += 1; throw new Error("nee"); } });
+  clearTimeout(timer);
+  assert.equal(calls, 0);
+  assert.equal(container.innerHTML, "");
+});
+
+test("init polls when now falls inside a poll window", async () => {
+  const { doc, container } = containerDoc();
+  const nowSec = Math.floor(Date.now() / 1000);
+  container.setAttribute("data-live-windows", JSON.stringify([nowSec - 60]));
+  installFetch({
+    "statsapi.mlb.com": {
+      ok: true, status: 200,
+      payload: { dates: [{ games: [liveGame("New York Mets", "Philadelphia Phillies")] }] },
+    },
+  });
+  const timer = await live.init(doc, { fetch: globalThis.fetch });
+  clearTimeout(timer);
+  assert.match(container.innerHTML, /nu bezig/);
+});
+
 // --- init ---
 function containerDoc() {
   const doc = globalThis.document;

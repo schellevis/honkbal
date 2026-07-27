@@ -513,6 +513,15 @@ navigatielabel van de avond-tab client-side naar **"nu + avond"** (server-side b
 - Auto-refresh: 30 s zolang er live/preview-wedstrijden zijn, anders 300 s (zelfde regel als §6.2).
   Netwerkfout → sectie ongewijzigd laten (geen foutmelding; het statische schema blijft leidend).
   Geen localStorage-cache: de sectie is per definitie "nu".
+- **Poll-vensters:** de API wordt alleen aangeroepen als er live games verwácht worden. Build-time
+  krijgt `#live-container` een `data-live-windows`-attribuut: JSON-array van starttijden
+  (epoch-seconden) over de **volledige** gameslijst (nachtgames staan niet op de avond-pagina maar
+  zijn 's ochtends juist live), van `LIVE_WINDOW_HOURS` (5) terug tot `LIVE_POLL_HORIZON_HOURS`
+  (48) vooruit; TBD-games leveren geen venster. Client-side pollt de module alleen binnen
+  `[start, start + 5u]` van enig venster; daarbuiten wacht hij (timer tot de eerstvolgende start)
+  of stopt hij als er geen venster meer over is. **Status wint van het venster:** zag de laatste
+  fetch nog live/preview-games, dan blijft de module pollen tot de API ze klaar meldt (uitlopers
+  > 5u). Attribuut afwezig/onleesbaar → altijd pollen (fallback = gedrag zonder gating).
 
 ### 6.9 Bètafeatures + interessefilter [NEW]
 Experimentele features zijn **opt-in** via een "Bètafeatures"-sectie op de instellingenpagina:

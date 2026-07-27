@@ -8,3 +8,5 @@ ESPNCAP = 3000  # seconden
 COUNTDOWN_FROM = (1, 1)  # (dag, maand)
 TEST_NEXT_SEASON = False
 LIVE_GRACE_HOURS = 4  # getimede games blijven zichtbaar tot dit aantal uren na de starttijd
+LIVE_WINDOW_HOURS = 5  # live-sectie: poll-venster per game = [start, start + dit aantal uren]
+LIVE_POLL_HORIZON_HOURS = 48  # live-sectie: hoever vooruit starttijden in de HTML meegaan
