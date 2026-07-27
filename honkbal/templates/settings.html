@@ -28,6 +28,23 @@
     </div>
   </form>
 </section>
+
+<section class="settings-panel">
+  <div class="settings-intro">
+    <h2>Bètafeatures</h2>
+    <p>Experimentele functies. Wijzigingen worden direct opgeslagen (alleen in deze browser).</p>
+  </div>
+  <div class="beta-options">
+    <label class="beta-option">
+      <input type="checkbox" name="beta" value="live">
+      <span>"nu bezig" op de avond-tab: wedstrijden die op dit moment gespeeld worden, met live scores (tab heet dan "nu + avond")</span>
+    </label>
+    <label class="beta-option">
+      <input type="checkbox" name="beta" value="interest">
+      <span>interessefilter: slider op de schemapagina's die alleen de interessantste wedstrijden toont</span>
+    </label>
+  </div>
+</section>
 {% endblock %}
 {% block scripts %}
 <script type="module" src="{{ js_root }}/settings-entry.js"></script>

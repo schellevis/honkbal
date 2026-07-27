@@ -54,6 +54,20 @@ def test_logo_and_name_rendered_and_escaped():
     assert "/img/red+sox-fs8.png?v1" in html
 
 
+def test_row_data_interest_from_enrichment():
+    """SPEC §6.9: rijen met enrichment dragen een afgeronde data-interest-score; zonder niet."""
+    from honkbal.models import Enrichment
+
+    scored = Game(date_ams=date(2026, 6, 21), time_ams=time(20, 5), hour_ams=20,
+                  date_et=date(2026, 6, 21), away="Red Sox", home="Yankees",
+                  is_tbd=False, source_seq=0,
+                  enrichment=Enrichment(score=41.6, label="topper", reasons=("rivalry",)))
+    plain = _g(date(2026, 6, 21), 20, "Mets", "Phillies", seq=1)
+    html = _render([scored, plain])
+    assert 'data-interest="42"' in html
+    assert html.count("data-interest") == 1  # rij zonder enrichment krijgt geen attribuut
+
+
 def test_empty_state_message():
     html = _render([_g(date(2026, 6, 21), 20, "River Cats", "Chihuahuas")])
     assert "Geen wedstrijden beschikbaar 😢" in html

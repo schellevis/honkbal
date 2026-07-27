@@ -13,7 +13,7 @@ Honkbal.net is een Python/uv static-site generator die MLB-wedstrijden in Nederl
 1. **Fetch** (`uv run honkbal fetch`): haalt de MLB-ticketingfeed op per team-ID (mapping in `honkbal/config/feeds.py`); schrijft gecachte JSON naar `.data/`. Vóór `season.windows.ps` ook MLB-StatsAPI-standen (`fetch/standings.py` → `.data/standings.json`, voor enrichment, faalt zacht). Na `season.windows.ps` ook ESPN-postseason-API.
 2. **Parse**: `honkbal/parse/schedule.py` zet CSV om naar een lijst van getypte `Game`-objecten (NY→Amsterdam tijdzone-conversie; TBD-afhandeling; allowlist; dedup); `honkbal/parse/espn_postseason.py` levert `PostseasonData`.
 3. **Enrich** (alleen reguliere seizoen): `honkbal/enrichment.py::enrich_games` kent elke wedstrijd een regelgebaseerde interessantheidsscore toe (`Enrichment{score,label,reasons}`) op basis van rivalry (`config/rivalries.py`), divisie/league (`config/teams.py`), standen (`.data/standings.json`) en optionele playoff-odds (`.data/playoff_odds.json`). Postseason wordt overgeslagen (`clock.now() >= season.windows.ps`). Zie SPEC §11.
-4. **Render** (`uv run honkbal render`): `honkbal/render/pages.py` bouwt Jinja2-context via `render/context.py`, rendert alle pagina's naar `docs/` met autoescape aan. De eerste 250 wedstrijden staan inline in de HTML; de rest schrijft `render/tail.py` als HTML-fragmentblokken naar `<pagina>.tail.json` (SPEC §5.9). Daarna kopieert de CLI statische assets vanuit `frontend/` naar `docs/`. `cmd_render` draait stap 3 (enrich) vlak vóór het bouwen van de context; `enrichment_*` zit op `RowContext` maar wordt **nog niet getoond** in templates.
+4. **Render** (`uv run honkbal render`): `honkbal/render/pages.py` bouwt Jinja2-context via `render/context.py`, rendert alle pagina's naar `docs/` met autoescape aan. De eerste 250 wedstrijden staan inline in de HTML; de rest schrijft `render/tail.py` als HTML-fragmentblokken naar `<pagina>.tail.json` (SPEC §5.9). Daarna kopieert de CLI statische assets vanuit `frontend/` naar `docs/`. `cmd_render` draait stap 3 (enrich) vlak vóór het bouwen van de context; `enrichment_*` zit op `RowContext` en wordt als `data-interest`-attribuut op schema-rijen gerenderd (voor het interessefilter, SPEC §6.9); label/reasons worden nog niet getoond.
 5. **Config-validatie**: `honkbal/season.py` valideert het actieve seizoensblok (Pydantic + `@model_validator`). Een ongeldige datum of ontbrekend verplicht veld → `ConfigError` → de build faalt **luid vóór publicatie**.
 6. **`version.txt`**: in CI geschreven door de workflow (`${GITHUB_SHA::12}-${GITHUB_RUN_NUMBER}`); bij lokale builds valt de CLI terug op de mtime van `style.css`. Niet handmatig committen.
 
@@ -22,6 +22,9 @@ Honkbal.net is een Python/uv static-site generator die MLB-wedstrijden in Nederl
 Logica-modules (geïmporteerd; exporteren `init`/functies, doen zelf geen self-init):
 
 - `frontend/js/scores.js`: live scores via MLB Stats API (5-daags venster), gecached per dag in `localStorage`, sortering favorieten boven.
+- `frontend/js/live.js`: "nu bezig"-sectie op de avond-tab (SPEC §6.8, bètafeature `live`): live wedstrijden + scores via MLB Stats API (2-daags NY-venster), verbergt dubbele statische schema-rijen, hernoemt de avond-tab client-side naar "nu + avond"; geen localStorage-cache.
+- `frontend/js/interest.js`: interessefilter-slider op schemapagina's (SPEC §6.9, bètafeature `interest`): verbergt rijen met `data-interest`-score onder de gekozen drempel (class `interest-hidden`).
+- `frontend/js/beta.js`: bètafeature-opslag (`honkbal-beta-features` in `localStorage`, SPEC §6.9); checkboxes op de instellingenpagina (`name="beta"`, direct opgeslagen).
 - `frontend/js/standings.js`: standen via MLB Stats API met seizoenjaar dat server-side in de HTML is ingebakken.
 - `frontend/js/loadmore.js`: haalt `<pagina>.tail.json` op (network-first) en plakt extra wedstrijdrijen aan de pagina.
 - `frontend/js/favorites.js`: gedeelde module voor opslaan/lezen/highlighten favoriete teams.
@@ -30,7 +33,7 @@ Logica-modules (geïmporteerd; exporteren `init`/functies, doen zelf geen self-i
 
 Entry-modules (extern geladen via `<script type="module">`, **geen inline blob** — SPEC §6.1; self-init op `DOMContentLoaded`):
 
-- `scores-entry.js`, `standings-entry.js`, `settings-entry.js`: importeren `init` uit de bijbehorende logica-module en starten die op.
+- `scores-entry.js`, `standings-entry.js`, `settings-entry.js`, `live-entry.js`, `interest-entry.js`: importeren `init` uit de bijbehorende logica-module en starten die op (`live-entry.js` alleen op pagina's met `page == 'avond'`, incl. `index.html`; `live-entry.js` en `interest-entry.js` alleen als de bijbehorende bètafeature aanstaat, SPEC §6.9).
 - `favorites-init.js`: past favoriet-highlights toe en luistert op cross-tab `storage`-events.
 - `register-sw.js`: registreert `/sw.js` (scope `/`, `updateViaCache: "none"`) — vervangt de oude inline registratie (SPEC §6.5).
 
@@ -87,7 +90,7 @@ honkbal/
     feeds.py                   # TEAM_FEEDS: team_id <-> team mapping (30 MLB-teams + all-star)
     teams.py                   # teams_nl, teams_al, slugs, abbreviations, allowlist, TEAM_DIVISIONS/division_of
     rivalries.py               # handmatige rivalry-tiers (1..3) per teampaar (jaarlijks onderhoud)
-    toggles.py                 # SHOW_GAMES=250, LOAD_MORE_BATCH=250, ESPNCAP=3000 etc.
+    toggles.py                 # SHOW_GAMES=250, LOAD_MORE_BATCH=250, LIVE_GRACE_HOURS=4 etc.
     calendar_nl.py             # Nederlandse dag- en maandnamen
   fetch/
     schedule.py                # MLB ticketing-CSV ophalen per team-feed
@@ -118,8 +121,8 @@ frontend/
     style.css                  # custom CSS
     bootstrap-grid.min.css     # grid-hulp
   js/
-    favorites.js  scores.js  standings.js  settings.js  loadmore.js  nav.js  sw.js
-    favorites-init.js  scores-entry.js  standings-entry.js  settings-entry.js  # entry-modules (self-init)
+    favorites.js  scores.js  standings.js  settings.js  loadmore.js  nav.js  live.js  interest.js  beta.js  sw.js
+    favorites-init.js  scores-entry.js  standings-entry.js  settings-entry.js  live-entry.js  interest-entry.js  # entry-modules (self-init)
     register-sw.js                                                             # SW-registratie (geen inline blob)
     util/  diamond.js  dom.js  logo.js  teams.js  time.js
   static/

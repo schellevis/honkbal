@@ -7,3 +7,4 @@ GRAB_NO_WAIT = False
 ESPNCAP = 3000  # seconden
 COUNTDOWN_FROM = (1, 1)  # (dag, maand)
 TEST_NEXT_SEASON = False
+LIVE_GRACE_HOURS = 4  # getimede games blijven zichtbaar tot dit aantal uren na de starttijd

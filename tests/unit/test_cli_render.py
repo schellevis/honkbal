@@ -140,23 +140,27 @@ def test_now_filter_excludes_past_games(tmp_path):
     )
 
 
-def test_timed_game_later_today_kept_but_already_started_dropped(tmp_path):
-    """MINOR (§3.2): moment-nauwkeurige filter voor GETIMEDE games — strikt vanaf nu.
+def test_timed_game_grace_window_keeps_live_drops_finished(tmp_path):
+    """MINOR (§3.2): moment-nauwkeurige filter voor GETIMEDE games — met grace-window.
 
-    now = 2026-06-21 12:00 CEST. Beide wedstrijden staan op dezelfde Amsterdamse dag
-    (vandaag), zodat alleen de moment-precisie (niet de datum) het verschil maakt:
-    - KEEP:  AMS 2026-06-21 21:00 (later vandaag, nog niet begonnen) → start > nu.
-    - DROP:  AMS 2026-06-21 09:00 (eerder vandaag, al begonnen)      → start <= nu,
-             ook al is date_ams (2026-06-21) == vandaag (date-granular zou 'm houden).
+    now = 2026-06-21 12:00 CEST, LIVE_GRACE_HOURS = 4. Alle wedstrijden staan op dezelfde
+    Amsterdamse dag (vandaag), zodat alleen de moment-precisie (niet de datum) het verschil
+    maakt:
+    - KEEP: AMS 2026-06-21 21:00 (later vandaag, nog niet begonnen)   → start > nu.
+    - KEEP: AMS 2026-06-21 10:00 (2u geleden begonnen, mogelijk bezig) → start > nu − 4u.
+    - DROP: AMS 2026-06-21 07:00 (5u geleden begonnen, klaar)          → start <= nu − 4u,
+            ook al is date_ams (2026-06-21) == vandaag (date-granular zou 'm houden).
 
-    ET +6h = AMS in de zomer, dus ET 03:00 PM → AMS 21:00 en ET 03:00 AM → AMS 09:00.
+    ET +6h = AMS in de zomer, dus ET 03:00 PM → AMS 21:00, ET 04:00 AM → AMS 10:00 en
+    ET 01:00 AM → AMS 07:00.
     """
     from datetime import datetime
 
     header = "START DATE,START TIME,START TIME ET,SUBJECT"
     keep_row = "06/21/26,01:05 PM,03:00 PM,Mets at Phillies"     # AMS 2026-06-21 21:00 (keep)
-    drop_row = "06/21/26,01:05 AM,03:00 AM,Yankees at Red Sox"   # AMS 2026-06-21 09:00 (drop)
-    csv_text = "\n".join([header, keep_row, drop_row]) + "\n"
+    live_row = "06/21/26,02:05 AM,04:00 AM,Cubs at Brewers"      # AMS 2026-06-21 10:00 (keep)
+    drop_row = "06/21/26,11:05 PM,01:00 AM,Yankees at Red Sox"   # AMS 2026-06-21 07:00 (drop)
+    csv_text = "\n".join([header, keep_row, live_row, drop_row]) + "\n"
 
     data_dir = tmp_path / "data"
     data_dir.mkdir()
@@ -173,8 +177,11 @@ def test_timed_game_later_today_kept_but_already_started_dropped(tmp_path):
     assert rc == 0
     content = (out / "alles.html").read_text(encoding="utf-8")
     assert 'data-away-team="mets"' in content, "timed game later today (start > now) must be kept"
+    assert 'data-away-team="cubs"' in content, (
+        "timed game started within the grace window (possibly still live) must be kept"
+    )
     assert 'data-away-team="yankees"' not in content, (
-        "timed game already started today (start <= now) must be dropped"
+        "timed game started before the grace window (start <= now - grace) must be dropped"
     )
 
 

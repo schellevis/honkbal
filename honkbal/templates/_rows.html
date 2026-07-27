@@ -18,7 +18,7 @@
 {% endif %}
 <tbody>
 {% for row in day.rows %}
-<tr data-away-team="{{ row.away_slug }}" data-home-team="{{ row.home_slug }}"{% if row.is_postseason_row %} class="ps-row"{% endif %}>
+<tr data-away-team="{{ row.away_slug }}" data-home-team="{{ row.home_slug }}"{% if row.enrichment_score is not none %} data-interest="{{ row.enrichment_score | round | int }}"{% endif %}{% if row.is_postseason_row %} class="ps-row"{% endif %}>
 <th scope="row" width="40">{{ row.time_label }}</th>
 <td><div class="espn"></div>
 {% if row.postseason_descr %}

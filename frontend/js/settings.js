@@ -1,4 +1,5 @@
 import { getFavorites, setFavorites, normalizeTeam, applyFavoriteHighlights, STORAGE_KEY } from "./favorites.js";
+import { getBetaFeatures, setBetaFeatures } from "./beta.js";
 
 const _settingsDocs = new Set();
 let _storageListenerRegistered = false;
@@ -13,21 +14,40 @@ export function buildState(checkedNames) {
   return result;
 }
 
+// Team-checkboxes dragen name="team"; bèta-checkboxes name="beta" (aparte opslag/flow).
+function teamCheckboxes(doc) {
+  return [...doc.querySelectorAll('input[type="checkbox"]')].filter((cb) => cb.name === "team");
+}
+
+function betaCheckboxes(doc) {
+  return [...doc.querySelectorAll('input[type="checkbox"]')].filter((cb) => cb.name === "beta");
+}
+
 export function syncCheckboxes(doc, favorites) {
   const favSet = new Set(favorites.map((f) => normalizeTeam(f)));
-  const checkboxes = doc.querySelectorAll('input[type="checkbox"]');
-  for (const cb of checkboxes) {
+  for (const cb of teamCheckboxes(doc)) {
     cb.checked = favSet.has(normalizeTeam(cb.value));
   }
 }
 
 function getCheckedValues(doc) {
-  const checkboxes = doc.querySelectorAll('input[type="checkbox"]');
   const values = [];
-  for (const cb of checkboxes) {
+  for (const cb of teamCheckboxes(doc)) {
     if (cb.checked) values.push(cb.value);
   }
   return values;
+}
+
+// Bètafeatures: sync uit localStorage en sla direct op bij wijziging (geen opslaan-knop nodig).
+export function initBetaCheckboxes(doc) {
+  const boxes = betaCheckboxes(doc);
+  const enabled = new Set(getBetaFeatures());
+  for (const cb of boxes) {
+    cb.checked = enabled.has(cb.value);
+    cb.addEventListener("change", () => {
+      setBetaFeatures(boxes.filter((b) => b.checked).map((b) => b.value));
+    });
+  }
 }
 
 let _statusTimer = null;
@@ -49,6 +69,7 @@ export function init(doc) {
 
   // Sync checkboxes from current favorites on load
   syncCheckboxes(doc, getFavorites());
+  initBetaCheckboxes(doc);
 
   const saveBtn = doc.getElementById("favorites-save");
   const clearBtn = doc.getElementById("favorites-clear");
@@ -65,8 +86,7 @@ export function init(doc) {
 
   if (clearBtn) {
     clearBtn.addEventListener("click", () => {
-      const checkboxes = doc.querySelectorAll('input[type="checkbox"]');
-      for (const cb of checkboxes) cb.checked = false;
+      for (const cb of teamCheckboxes(doc)) cb.checked = false;
       setFavorites([]);
       applyFavoriteHighlights(doc);
       showStatus(doc, "Favorieten gewist.");
