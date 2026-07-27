@@ -43,9 +43,9 @@ export function init(doc) {
   table.insertAdjacentHTML(
     "beforebegin",
     `<div class="interest-filter">` +
-      `<label for="interest-slider">alleen interessante wedstrijden` +
-      ` <span id="interest-value"></span></label>` +
+      `<label class="interest-filter-label" for="interest-slider">interessefilter</label>` +
       `<input type="range" id="interest-slider" min="0" max="100" step="1">` +
+      `<span id="interest-value" class="interest-filter-value" aria-live="polite"></span>` +
       `</div>`
   );
 
@@ -54,7 +54,15 @@ export function init(doc) {
   if (!slider) return;
 
   function apply(threshold) {
-    if (valueEl) valueEl.textContent = threshold > 0 ? `(score ≥ ${threshold})` : "(uit)";
+    if (valueEl) {
+      valueEl.textContent = threshold > 0 ? `≥ ${threshold}` : "uit";
+      if (valueEl.classList) valueEl.classList.toggle("is-active", threshold > 0);
+    }
+    // Gevulde track tot de thumb (CSS leest --interest-fill), zodat de slider dezelfde
+    // accent-taal spreekt als de nav-pills.
+    if (slider.style && slider.style.setProperty) {
+      slider.style.setProperty("--interest-fill", `${threshold}%`);
+    }
     applyThreshold(doc, threshold);
   }
 

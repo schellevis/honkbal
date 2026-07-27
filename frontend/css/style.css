@@ -575,17 +575,97 @@ p.foot a:hover { color: var(--c-accent); }
 .interest-filter {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin: 0 0 16px;
-  font-size: 14px;
+  gap: 14px;
+  margin: 0 0 20px;
+  padding: 8px 14px;
+  background: var(--c-nav-bg);
+  border: 1px solid var(--c-border);
+  border-radius: 10px;
+  max-width: 420px;
+}
+
+.interest-filter-label {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 500;
   color: var(--c-text-muted);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.interest-filter-value {
+  min-width: 44px;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: var(--c-bg);
+  border: 1px solid var(--c-border);
+  color: var(--c-text-muted);
+  transition: all 0.15s ease;
+}
+
+.interest-filter-value.is-active {
+  background: var(--c-badge-bg);
+  border-color: transparent;
+  color: var(--c-badge-text);
 }
 
 .interest-filter input[type="range"] {
+  --interest-fill: 0%;
   flex: 1;
-  max-width: 260px;
+  appearance: none;
+  -webkit-appearance: none;
+  height: 6px;
+  border-radius: 999px;
+  background: linear-gradient(
+    to right,
+    var(--c-accent) var(--interest-fill),
+    var(--c-border) var(--interest-fill)
+  );
+  outline: none;
+  cursor: pointer;
+}
+
+.interest-filter input[type="range"]::-webkit-slider-thumb {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--c-bg);
+  border: 2px solid var(--c-accent);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+  transition: transform 0.1s ease;
+}
+
+.interest-filter input[type="range"]::-webkit-slider-thumb:hover,
+.interest-filter input[type="range"]::-webkit-slider-thumb:active {
+  transform: scale(1.15);
+}
+
+.interest-filter input[type="range"]::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--c-bg);
+  border: 2px solid var(--c-accent);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+  transition: transform 0.1s ease;
+}
+
+.interest-filter input[type="range"]:focus-visible {
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.25);
 }
 
 .interest-hidden {
   display: none;
+}
+
+@media (prefers-color-scheme: dark) {
+  .interest-filter input[type="range"]::-webkit-slider-thumb,
+  .interest-filter input[type="range"]::-moz-range-thumb {
+    background: var(--c-bg-alt);
+  }
 }
