@@ -163,9 +163,9 @@ export async function init(doc, { fetch: fetchFn } = {}) {
     }
   }
 
-  async function tick() {
+  async function tick(forceInitial = false) {
     const inWindow =
-      windows === null || sawLive || nextPollDelay(windows, Date.now()) === 0;
+      forceInitial || windows === null || sawLive || nextPollDelay(windows, Date.now()) === 0;
     if (inWindow) {
       await fetchAndRender();
       return setTimeout(tick, refreshIntervalMs(sawLive));
@@ -175,6 +175,10 @@ export async function init(doc, { fetch: fetchFn } = {}) {
     return setTimeout(tick, delay);
   }
 
+  // Altijd één keer pollen bij het laden: een wedstrijd die nú bezig is moet direct verschijnen,
+  // óók als het build-time venster hem mist (game die al >5u loopt door delay/extra innings, of
+  // een verouderde data-live-windows). Daarna gate't de gewone tick de vervolg-polls en houdt
+  // sawLive een lopende wedstrijd vanzelf actief (SPEC §6.8).
   // Return the in-flight promise so callers/tests can await the first render cycle.
-  return tick();
+  return tick(true);
 }

@@ -216,14 +216,21 @@ test("nextPollDelay: in window → 0, before window → wait, after all windows 
   assert.equal(live.nextPollDelay([], startMs), null);
 });
 
-test("init does not call the API outside every poll window", async () => {
+test("init polls once on load even with no poll window, so an in-progress game is caught", async () => {
+  // Regressie: een wedstrijd die al >5u loopt (delay/extra innings) of die het build-time venster
+  // mist, moet toch verschijnen. De forced initial poll rendert hem; de venster-gating geldt pas
+  // voor de vervolg-polls (SPEC §6.8).
   const { doc, container } = containerDoc();
-  container.setAttribute("data-live-windows", "[]");
-  let calls = 0;
-  const timer = await live.init(doc, { fetch: async () => { calls += 1; throw new Error("nee"); } });
+  container.setAttribute("data-live-windows", "[]"); // geen enkel venster
+  installFetch({
+    "statsapi.mlb.com": {
+      ok: true, status: 200,
+      payload: { dates: [{ games: [liveGame("New York Mets", "Philadelphia Phillies")] }] },
+    },
+  });
+  const timer = await live.init(doc, { fetch: globalThis.fetch });
   clearTimeout(timer);
-  assert.equal(calls, 0);
-  assert.equal(container.innerHTML, "");
+  assert.match(container.innerHTML, /nu bezig/);
 });
 
 test("init polls when now falls inside a poll window", async () => {

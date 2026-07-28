@@ -527,9 +527,12 @@ de topnavigatielink "schema" wijst óók naar `/avond.html` maar behoudt zijn la
   krijgt `#live-container` een `data-live-windows`-attribuut: JSON-array van starttijden
   (epoch-seconden) over de **volledige** gameslijst (nachtgames staan niet op de avond-pagina maar
   zijn 's ochtends juist live), van `LIVE_WINDOW_HOURS` (5) terug tot `LIVE_POLL_HORIZON_HOURS`
-  (48) vooruit; TBD-games leveren geen venster. Client-side pollt de module alleen binnen
-  `[start, start + 5u]` van enig venster; daarbuiten wacht hij (timer tot de eerstvolgende start)
-  of stopt hij als er geen venster meer over is. **Status wint van het venster:** zag de laatste
+  (48) vooruit; TBD-games leveren geen venster. **Bij het laden pollt de module altijd één keer**,
+  ongeacht de vensters: een wedstrijd die nú bezig is moet direct verschijnen, óók als het
+  build-time venster hem mist (game die al >5u loopt door delay/extra innings, of een verouderde
+  `data-live-windows`). Daarna pollt de module alleen binnen `[start, start + 5u]` van enig venster;
+  daarbuiten wacht hij (timer tot de eerstvolgende start) of stopt hij als er geen venster meer over
+  is. **Status wint van het venster:** zag de laatste
   fetch nog live/preview-games, dan blijft de module pollen tot de API ze klaar meldt (uitlopers
   > 5u). Attribuut afwezig/onleesbaar → altijd pollen (fallback = gedrag zonder gating).
 
