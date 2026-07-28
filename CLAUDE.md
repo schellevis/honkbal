@@ -22,7 +22,7 @@ Honkbal.net is een Python/uv static-site generator die MLB-wedstrijden in Nederl
 Logica-modules (geïmporteerd; exporteren `init`/functies, doen zelf geen self-init):
 
 - `frontend/js/scores.js`: live scores via MLB Stats API (5-daags venster), gecached per dag in `localStorage`, sortering favorieten boven.
-- `frontend/js/live.js`: "nu bezig"-sectie op de avond-tab (SPEC §6.8, bètafeature `live`): live wedstrijden + scores via MLB Stats API (2-daags NY-venster), verbergt dubbele statische schema-rijen, hernoemt de avond-tab client-side naar "nu + avond"; geen localStorage-cache. Pollt alleen binnen build-time meegegeven poll-vensters (`data-live-windows`, starttijd + 5u per game); daarbuiten geen API-calls.
+- `frontend/js/live.js`: "nu bezig"-sectie op de avond-tab (SPEC §6.8, staat voor iedereen aan — geen bèta meer): live wedstrijden + scores via MLB Stats API (2-daags NY-venster), verbergt dubbele statische schema-rijen, hernoemt de avond-tab client-side naar "nu + avond"; geen localStorage-cache. Pollt alleen binnen build-time meegegeven poll-vensters (`data-live-windows`, starttijd + 5u per game); daarbuiten geen API-calls.
 - `frontend/js/interest.js`: interessefilter-slider op schemapagina's (SPEC §6.9, bètafeature `interest`): verbergt rijen met een `data-interest`-percentiel onder de gekozen drempel (class `interest-hidden`); rijen zonder attribuut (postseason/all-star) blijven altijd zichtbaar en zonder gescoorde rijen komt er geen slider.
 - `frontend/js/beta.js`: bètafeature-opslag (`honkbal-beta-features` in `localStorage`, SPEC §6.9); checkboxes op de instellingenpagina (`name="beta"`, direct opgeslagen).
 - `frontend/js/standings.js`: standen via MLB Stats API met seizoenjaar dat server-side in de HTML is ingebakken.
@@ -33,7 +33,7 @@ Logica-modules (geïmporteerd; exporteren `init`/functies, doen zelf geen self-i
 
 Entry-modules (extern geladen via `<script type="module">`, **geen inline blob** — SPEC §6.1; self-init op `DOMContentLoaded`):
 
-- `scores-entry.js`, `standings-entry.js`, `settings-entry.js`, `live-entry.js`, `interest-entry.js`: importeren `init` uit de bijbehorende logica-module en starten die op (`live-entry.js` alleen op pagina's met `page == 'avond'`, incl. `index.html`; `live-entry.js` en `interest-entry.js` alleen als de bijbehorende bètafeature aanstaat, SPEC §6.9).
+- `scores-entry.js`, `standings-entry.js`, `settings-entry.js`, `live-entry.js`, `interest-entry.js`: importeren `init` uit de bijbehorende logica-module en starten die op (`live-entry.js` alleen op pagina's met `page == 'avond'`, incl. `index.html`; `interest-entry.js` alleen als de bètafeature `interest` aanstaat, SPEC §6.9).
 - `favorites-init.js`: past favoriet-highlights toe en luistert op cross-tab `storage`-events.
 - `register-sw.js`: registreert `/sw.js` (scope `/`, `updateViaCache: "none"`) — vervangt de oude inline registratie (SPEC §6.5).
 
@@ -221,7 +221,7 @@ Controleer ook (enrichment): `honkbal/config/teams.py::TEAM_DIVISIONS` bij divis
 - **Kale `datetime.now()` in domeincode is verboden.** Gebruik altijd `clock.now()` — anders zijn tests niet deterministisch en is `--now` zinloos.
 - **Config-validatie faalt de build hard.** Een seizoensblok met een typefout in een datum of een ontbrekend verplicht veld blokkeert render en publicatie. Dat is opzettelijk.
 - **Service-worker cache-versie.** CSS en HTML worden **network-first** gehaald; toch moet de `CACHE`-naam in `sw.js` worden opgehoogd bij PRECACHE-wijzigingen, zodat verouderde pre-caches worden verwijderd.
-- **`localStorage`-favorieten zijn browser-lokaal.** Testen in een andere browser of incognito geeft een andere uitkomst. Dat geldt ook voor bètafeatures (`honkbal-beta-features`) en de interessefilter-drempel (`honkbal-interest-threshold`): standaard staat alles uit — de live-sectie en de slider zie je pas na opt-in via `/settings.html`.
+- **`localStorage`-favorieten zijn browser-lokaal.** Testen in een andere browser of incognito geeft een andere uitkomst. Dat geldt ook voor bètafeatures (`honkbal-beta-features`) en de interessefilter-drempel (`honkbal-interest-threshold`): standaard staat alles uit — de slider zie je pas na opt-in via `/settings.html`. De "nu bezig"-sectie is géén bèta meer en staat voor iedereen aan.
 - **`LIVE_WINDOW_MS` in `frontend/js/live.js` moet gelijk blijven aan `LIVE_WINDOW_HOURS` in `config/toggles.py`** (nu beide 5u): build-time bepaalt welke starttijden in `data-live-windows` meegaan, client-side hoe lang een venster na de start open blijft. Lopen ze uiteen, dan pollt de live-sectie te lang of mist hij games.
 - **`localStorage`-score-cache is versiegebonden.** Bij wijzigingen in de datashape van `scores.js` de cacheversie in dat bestand ophogen, anders werken bestaande gebruikers met een incompatibele payload.
 - **`config/feeds.py` (team-mapping + `ALLSTAR_FEED_ID`) is live gevalideerd op 2026-06-22** (30/30 teams + all-star, 0 mismatches). De feed-id's kunnen per seizoen veranderen; hervalideer met een live `discover_feeds`-run over range 105..161 bij twijfel of feed-wijzigingen.

@@ -138,9 +138,9 @@ test("init registers one storage listener across repeated settings init calls", 
 });
 
 // --- bètafeatures (SPEC §6.9) ---
-function addBetaCheckboxes(doc) {
+function addBetaCheckboxes(doc, features = ["interest"]) {
   const boxes = [];
-  for (const feature of ["live", "interest"]) {
+  for (const feature of features) {
     const input = doc.createElement("input");
     input.type = "checkbox";
     input.value = feature;
@@ -153,36 +153,50 @@ function addBetaCheckboxes(doc) {
 
 test("beta checkboxes sync from storage and save immediately on change", async () => {
   const beta = await import("../js/beta.js?" + Math.random());
-  beta.setBetaFeatures(["interest"]);
+  beta.setBetaFeatures([]);
   const doc = buildSettingsDom();
-  const [liveBox, interestBox] = addBetaCheckboxes(doc);
+  const [interestBox] = addBetaCheckboxes(doc);
 
   settings.init(doc);
-  assert.equal(liveBox.checked, false);
-  assert.equal(interestBox.checked, true);
+  assert.equal(interestBox.checked, false);
 
+  interestBox.checked = true;
+  interestBox.dispatchEvent({ type: "change" });
+  assert.deepEqual(beta.getBetaFeatures(), ["interest"]);
+
+  interestBox.checked = false;
+  interestBox.dispatchEvent({ type: "change" });
+  assert.deepEqual(beta.getBetaFeatures(), []);
+});
+
+test("checkbox of a graduated feature never turns it back on", async () => {
+  const beta = await import("../js/beta.js?" + Math.random());
+  const doc = buildSettingsDom();
+  const [liveBox] = addBetaCheckboxes(doc, ["live"]);
+
+  settings.init(doc);
   liveBox.checked = true;
   liveBox.dispatchEvent({ type: "change" });
-  assert.deepEqual(new Set(beta.getBetaFeatures()), new Set(["live", "interest"]));
+  assert.deepEqual(beta.getBetaFeatures(), [], "live is geen bètafeature meer");
 });
 
 test("favorites save and clear leave beta checkboxes and storage untouched", async () => {
   const beta = await import("../js/beta.js?" + Math.random());
-  beta.setBetaFeatures(["live"]);
+  beta.setBetaFeatures(["interest"]);
   fav.setFavorites(["yankees"]);
   const doc = buildSettingsDom();
-  const [liveBox] = addBetaCheckboxes(doc);
+  const [interestBox] = addBetaCheckboxes(doc);
 
   settings.init(doc);
-  assert.equal(liveBox.checked, true);
+  assert.equal(interestBox.checked, true);
 
   doc.getElementById("favorites-save").dispatchEvent({ type: "click" });
   assert.deepEqual(fav.getFavorites(), ["yankees"]);
-  assert.equal(liveBox.checked, true);
-  assert.deepEqual(beta.getBetaFeatures(), ["live"]);
+  assert.equal(interestBox.checked, true);
+  assert.deepEqual(beta.getBetaFeatures(), ["interest"]);
 
   doc.getElementById("favorites-clear").dispatchEvent({ type: "click" });
   assert.deepEqual(fav.getFavorites(), []);
-  assert.equal(liveBox.checked, true, "wissen raakt alleen team-checkboxes");
-  assert.deepEqual(beta.getBetaFeatures(), ["live"]);
+  assert.equal(interestBox.checked, true, "wissen raakt alleen team-checkboxes");
+  assert.deepEqual(beta.getBetaFeatures(), ["interest"]);
 });

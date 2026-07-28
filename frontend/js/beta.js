@@ -5,8 +5,9 @@
 export const BETA_KEY = "honkbal-beta-features";
 
 // Bekende features; onbekende namen worden bij het opslaan weggefilterd zodat een oude
-// localStorage-payload geen spookfeatures kan aanzetten.
-export const BETA_FEATURES = ["live", "interest"];
+// localStorage-payload geen spookfeatures kan aanzetten. Uitgestudeerde features (zoals "live",
+// dat nu voor iedereen aanstaat) verdwijnen hier: bestaande payloads verliezen de naam vanzelf.
+export const BETA_FEATURES = ["interest"];
 
 export function getBetaFeatures() {
   try {
