@@ -3,7 +3,7 @@
 // boven het statische schema. Geen localStorage-cache: de sectie is per definitie "nu".
 import { classifyGame, liveScore, renderScoresHtml, refreshIntervalMs } from "./scores.js";
 import { nyDateWindow, mmddyyyy } from "./util/time.js";
-import { escapeHtml } from "./util/dom.js";
+import { escapeHtml, syncDayHeaders } from "./util/dom.js";
 import { isFavoriteMatchup, applyFavoriteHighlights, initFavorites, normalizeTeam } from "./favorites.js";
 
 // Poll-venster per game (moet gelijk zijn aan LIVE_WINDOW_HOURS in config/toggles.py):
@@ -110,6 +110,9 @@ export function syncHiddenRows(doc, games) {
     }
     for (const row of rows) row.hidden = hidden.has(row);
   }
+  // Zijn alle games van een dag naar de "nu bezig"-sectie verplaatst, verberg dan de nu lege
+  // dagkop (SPEC §6.8) — anders blijft er een verweesd datumkopje staan.
+  syncDayHeaders(doc);
 }
 
 export async function init(doc, { fetch: fetchFn } = {}) {

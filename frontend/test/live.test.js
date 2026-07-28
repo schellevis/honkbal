@@ -113,6 +113,57 @@ test("syncHiddenRows hides the doubleheader row closest to the API start time", 
   assert.equal(game2.hidden, true, "game 2 (live) wordt gededupliceerd");
 });
 
+// --- syncHiddenRows: lege dagkoppen (SPEC §6.8) ---
+function dayCluster(headerLabel, rows) {
+  const doc = globalThis.document;
+  const table = doc.createElement("table");
+  table.classList.add("loadmore-container");
+  const thead = doc.createElement("thead");
+  thead.textContent = headerLabel;
+  const tbody = doc.createElement("tbody");
+  for (const r of rows) tbody.appendChild(r);
+  table.appendChild(thead);
+  table.appendChild(tbody);
+  doc.body.appendChild(table);
+  return { table, thead, tbody };
+}
+
+test("syncHiddenRows hides the day header when all its games move to the live section", () => {
+  const only = makeRow({ away: "mets", home: "phillies" });
+  const { thead } = dayCluster("VANDAAG", [only]);
+
+  live.syncHiddenRows(globalThis.document, [liveGame("New York Mets", "Philadelphia Phillies")]);
+  assert.equal(only.hidden, true);
+  assert.equal(thead.classList.contains("day-hidden"), true, "verweesde dagkop verborgen");
+
+  // Wedstrijd afgelopen → rij terug → kop terug (SPEC §6.8).
+  live.syncHiddenRows(globalThis.document, []);
+  assert.equal(only.hidden, false);
+  assert.equal(thead.classList.contains("day-hidden"), false);
+});
+
+test("syncHiddenRows keeps the day header while a sibling game stays visible", () => {
+  const liveRow = makeRow({ away: "mets", home: "phillies" });
+  const other = makeRow({ away: "cubs", home: "brewers" });
+  const { thead } = dayCluster("VANDAAG", [liveRow, other]);
+
+  live.syncHiddenRows(globalThis.document, [liveGame("New York Mets", "Philadelphia Phillies")]);
+  assert.equal(liveRow.hidden, true);
+  assert.equal(other.hidden, false);
+  assert.equal(thead.classList.contains("day-hidden"), false, "kop blijft: nog een zichtbare rij");
+});
+
+test("syncHiddenRows hides the day header when the remaining row is interest-filtered", () => {
+  // Gemengd geval: één game live (row.hidden), de rest weggefilterd (interest-hidden) → leeg.
+  const liveRow = makeRow({ away: "mets", home: "phillies" });
+  const filtered = makeRow({ away: "cubs", home: "brewers" });
+  filtered.classList.add("interest-hidden");
+  const { thead } = dayCluster("VANDAAG", [liveRow, filtered]);
+
+  live.syncHiddenRows(globalThis.document, [liveGame("New York Mets", "Philadelphia Phillies")]);
+  assert.equal(thead.classList.contains("day-hidden"), true, "kop weg: geen enkele zichtbare rij");
+});
+
 // --- applyNuAvondLabel ---
 function navLink(href, text) {
   const link = globalThis.document.createElement("a");

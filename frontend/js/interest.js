@@ -4,6 +4,8 @@
 // Rijen zónder attribuut (postseason, all-star) vallen buiten het filter en blijven altijd
 // zichtbaar; draagt geen enkele rij een score (postseason-fase), dan komt er geen slider.
 
+import { syncDayHeaders } from "./util/dom.js";
+
 export const THRESHOLD_KEY = "honkbal-interest-threshold";
 
 export function getThreshold() {
@@ -32,14 +34,9 @@ export function applyThreshold(doc, threshold) {
       const score = rowScore(row);
       row.classList.toggle("interest-hidden", score !== null && score < threshold);
     }
-    // Dagkoppen zonder zichtbare rijen mee verbergen (thead hoort bij de volgende tbody).
-    for (const tbody of table.querySelectorAll("tbody")) {
-      const rows = tbody.querySelectorAll("[data-away-team]");
-      const anyVisible = [...rows].some((r) => !r.classList.contains("interest-hidden"));
-      const thead = tbody.previousElementSibling;
-      if (thead && thead.classList) thead.classList.toggle("interest-hidden", !anyVisible);
-    }
   }
+  // Dagkoppen zonder zichtbare rijen mee verbergen (gedeeld met de live-dedup, SPEC §6.8/§6.9).
+  syncDayHeaders(doc);
 }
 
 export function init(doc) {

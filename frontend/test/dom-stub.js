@@ -33,6 +33,15 @@ class StubElement {
     this.checked = false;
     this.name = "";
     this._id = "";
+    this.hidden = false;
+    this._parent = null;
+  }
+
+  get previousElementSibling() {
+    if (!this._parent) return null;
+    const sibs = this._parent._children;
+    const i = sibs.indexOf(this);
+    return i > 0 ? sibs[i - 1] : null;
   }
 
   get id() { return this._id; }
@@ -48,7 +57,7 @@ class StubElement {
 
   appendChild(child) {
     this._children.push(child);
-    if (child && child._parent !== undefined) child._parent = this;
+    if (child) child._parent = this;
     return child;
   }
 

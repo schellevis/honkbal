@@ -53,6 +53,24 @@ test("rows without a data-interest attribute are exempt from the filter", () => 
   assert.equal(unscored.classList.contains("interest-hidden"), false);
 });
 
+test("applyThreshold hides the day header when all its rows are filtered out", () => {
+  const doc = globalThis.document;
+  const table = doc.createElement("table");
+  table.classList.add("loadmore-container");
+  const thead = doc.createElement("thead");
+  const tbody = doc.createElement("tbody");
+  tbody.appendChild(scoredRow("mets", "phillies", 10));
+  table.appendChild(thead);
+  table.appendChild(tbody);
+  doc.body.appendChild(table);
+
+  interest.applyThreshold(doc, 50);
+  assert.equal(thead.classList.contains("day-hidden"), true, "lege dagkop verborgen");
+
+  interest.applyThreshold(doc, 0);
+  assert.equal(thead.classList.contains("day-hidden"), false, "kop terug bij drempel 0");
+});
+
 test("threshold persists via localStorage and rejects garbage", () => {
   assert.equal(interest.getThreshold(), 0);
   interest.setThreshold(35);

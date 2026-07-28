@@ -515,6 +515,10 @@ de topnavigatielink "schema" wijst óók naar `/avond.html` maar behoudt zijn la
   rij waarvan `data-start` (starttijd in epoch-seconden, build-time op elke getimede rij) het
   **dichtst** bij de `gameDate` van de API ligt — exact matchen kan niet omdat ticketingfeed en
   Stats API enkele minuten kunnen verschillen; rijen zonder `data-start` (TBD) zijn laatste keus.
+- Dagkoppen waarvan alle rijen verborgen zijn (naar de "nu bezig"-sectie verplaatst) worden mee
+  verborgen — anders blijft er een verweesd datumkopje staan. Dezelfde kop-synchronisatie als het
+  interessefilter (§6.9): een rij telt als zichtbaar zolang hij niet door de live-dedup (`hidden`)
+  én niet door het filter (`interest-hidden`) verborgen is.
 - Auto-refresh: 30 s zolang er live/preview-wedstrijden zijn, anders 300 s (zelfde regel als §6.2).
   Netwerkfout → sectie ongewijzigd laten (geen foutmelding; het statische schema blijft leidend).
   Geen localStorage-cache: de sectie is per definitie "nu".
@@ -549,7 +553,8 @@ wedstrijden toont, op basis van het build-time enrichment-percentiel (§11.2 pun
   de slider **niet geïnjecteerd** — anders zou elke drempel de hele pagina leegfilteren.
 - Rijen met percentiel < drempel krijgen class `interest-hidden` (CSS `display:none`) — bewust een
   eigen klasse en niet `hidden`, zodat het filter nooit conflicteert met de rij-dedup van de
-  live-sectie (§6.8). Dagkoppen waarvan alle rijen verborgen zijn worden mee verborgen.
+  live-sectie (§6.8). Dagkoppen waarvan alle rijen verborgen zijn worden mee verborgen (gedeelde
+  kop-synchronisatie met §6.8, die zowel `interest-hidden` als de live-`hidden` meetelt).
 - De drempel wordt bewaard in localStorage (`honkbal-interest-threshold`) en bij "meer laden"
   (§6.6) opnieuw toegepast op bijgeladen rijen (MutationObserver).
 

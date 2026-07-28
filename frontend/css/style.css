@@ -659,7 +659,8 @@ p.foot a:hover { color: var(--c-accent); }
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.25);
 }
 
-.interest-hidden {
+.interest-hidden,
+.day-hidden {
   display: none;
 }
 
