@@ -22,6 +22,39 @@ test("scores page: live game renders SVG bases and outs", async ({ page }) => {
   expect(svgCount).toBeGreaterThan(0);
 });
 
+test("scores page: team abbreviations are never clipped at mobile width", async ({ page }) => {
+  // Regressie: op smalle schermen toont de cel de afkorting (score-abbr). Die is kort en mag
+  // nooit met ellipsis worden afgekapt ("HOU" -> "H..."), ook niet in rijen met een brede
+  // live-statuspil of een tweecijferige score die de cel extra opknijpen.
+  await page.setViewportSize({ width: 390, height: 844 });
+  const now = new Date().toISOString();
+  const payload = { dates: [{ date: "2026-07-27", games: [
+    { gamePk: 1, gameDate: now,
+      status: { abstractGameState: "Live", detailedState: "In Progress" },
+      linescore: { currentInning: 9, isTopInning: false, outs: 1, offense: { first: true, second: true, third: true } },
+      teams: { away: { score: 6, team: { name: "Houston Astros", clubName: "Astros", abbreviation: "HOU" } },
+               home: { score: 4, team: { name: "Los Angeles Angels", clubName: "Angels", abbreviation: "LAA" } } } },
+    { gamePk: 2, gameDate: now,
+      status: { abstractGameState: "Final", detailedState: "Final" },
+      teams: { away: { score: 3, isWinner: false, team: { name: "Atlanta Braves", clubName: "Braves", abbreviation: "ATL" } },
+               home: { score: 14, isWinner: true, team: { name: "New York Mets", clubName: "Mets", abbreviation: "NYM" } } } },
+  ] }] };
+  await page.route("**/statsapi.mlb.com/**", (route) =>
+    route.fulfill({ contentType: "application/json", body: JSON.stringify(payload) }));
+  await page.goto("/scores.html");
+  await page.waitForTimeout(600);
+  const clipped = await page.evaluate(() => {
+    const bad = [];
+    for (const el of document.querySelectorAll(".score-abbr")) {
+      if (getComputedStyle(el).display === "none") continue; // desktop-modus: naam i.p.v. afkorting
+      const span = el.parentElement; // .score-team draagt de (uitgeschakelde) ellipsis
+      if (span.scrollWidth > span.clientWidth + 1) bad.push(el.textContent);
+    }
+    return bad;
+  });
+  expect(clipped).toEqual([]);
+});
+
 test("scores page: empty response renders empty state", async ({ page }) => {
   const emptyData = fixture("scores-empty.json");
   await page.route("**/statsapi.mlb.com/**", (route) => {

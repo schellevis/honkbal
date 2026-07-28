@@ -238,7 +238,7 @@ function renderTeamScore(competitor) {
   return (
     `<div style="display:flex;align-items:center;min-width:0;">` +
     logoPicture(name) +
-    `<span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">` +
+    `<span class="score-team">` +
     `<span class="score-name">${nameHtml}</span><span class="score-abbr">${abbrHtml}</span>` +
     `</span>` +
     scoreHtml +

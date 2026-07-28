@@ -276,11 +276,22 @@ span.comm { color: var(--c-text-muted); font-size: 8px; font-family: system-ui, 
 span.logofill { margin-left: 3px; }
 
 /* === SCORES === */
+/* De team-cel op scores/live-rijen: logo + naam/afkorting + score in een flex-rij.
+   De naam-variant mag bij ruimtegebrek met ellipsis afkappen; de afkorting-variant
+   (mobiel) is per definitie kort en mag NOOIT afkappen — anders wordt "HOU" -> "H...". */
+.score-team {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .score-abbr { display: none; }
 .score-name { display: inline; }
 @media (max-width: 480px) {
   .score-abbr { display: inline; }
   .score-name { display: none; }
+  /* Afkortingen tonen: laat de cel niet krimpen/afkappen (score-kolom mag geen letters opeten). */
+  .score-team { overflow: visible; flex-shrink: 0; }
 }
 
 /* === MISC === */
