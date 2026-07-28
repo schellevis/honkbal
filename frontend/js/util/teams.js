@@ -71,3 +71,22 @@ export function canonicalTeam(name) {
   if (!s) return s;
   return ALIASES[s] || s;
 }
+
+// Canonieke nickname -> MLB-afkorting (zoals de Stats API/UI ze toont: AZ, ATH, CWS, WSH, ...).
+// Fallback voor scores/live-rijen: de Stats API levert soms een onvolledig team-object zónder
+// `abbreviation` (alleen `name`); zonder deze map belandt de vólledige naam in de afkorting-kolom
+// en wordt die op smalle schermen tot één letter afgekapt ("New York Mets" -> "N...").
+const NICK_ABBR = {
+  braves: "ATL", marlins: "MIA", mets: "NYM", phillies: "PHI", nationals: "WSH",
+  cubs: "CHC", cardinals: "STL", brewers: "MIL", pirates: "PIT", reds: "CIN",
+  dodgers: "LAD", giants: "SF", padres: "SD", rockies: "COL", "d-backs": "AZ",
+  orioles: "BAL", yankees: "NYY", "red sox": "BOS", "blue jays": "TOR", rays: "TB",
+  "white sox": "CWS", guardians: "CLE", tigers: "DET", royals: "KC", twins: "MIN",
+  astros: "HOU", angels: "LAA", athletics: "ATH", mariners: "SEA", rangers: "TEX",
+};
+
+// Standaard-afkorting voor een bekende teamnaam/-vorm, of "" voor onbekende invoer
+// (all-star pseudo-teams, minor-league namen) zodat de caller een andere fallback kan kiezen.
+export function teamAbbr(name) {
+  return NICK_ABBR[canonicalTeam(name)] || "";
+}

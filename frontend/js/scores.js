@@ -1,6 +1,7 @@
 import { basesSvg, outsSvg } from "./util/diamond.js";
 import { amsHHmm, nyDateWindow, mmddyyyy, yyyymmdd } from "./util/time.js";
 import { logoPicture, displayName } from "./util/logo.js";
+import { teamAbbr } from "./util/teams.js";
 import { escapeHtml } from "./util/dom.js";
 import { isFavoriteMatchup, applyFavoriteHighlights, initFavorites, normalizeTeam } from "./favorites.js";
 
@@ -223,7 +224,9 @@ function renderTeamScore(competitor) {
   // liganaam ("American League"), zodat logoPicture het ligalogo vindt i.p.v. een tekst-fallback
   // (anders verscheen de naam dubbel: logofill-tekst + score-name).
   const name = displayName(team.clubName ?? team.shortDisplayName ?? team.name ?? "");
-  const abbr = team.abbreviation || name;
+  // Bij een onvolledig API-team-object (geen `abbreviation`) val terug op de lokale afkorting-map
+  // i.p.v. de vólledige naam, anders wordt de afkorting-kolom op smalle schermen afgekapt ("N...").
+  const abbr = team.abbreviation || teamAbbr(team.name) || name;
   const winner = competitor?.isWinner === true;
   const nameHtml = winner ? `<strong>${escapeHtml(name)}</strong>` : escapeHtml(name);
   const abbrHtml = winner ? `<strong>${escapeHtml(abbr)}</strong>` : escapeHtml(abbr);

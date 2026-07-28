@@ -37,6 +37,25 @@ test("renderScoresHtml highlights a game whose API names match a settings-favori
   assert.doesNotMatch(html, /data-away-team="boston-red-sox"/); // niet de oude gehyphende bug
 });
 
+test("renderScoresHtml falls back to a real abbreviation when the API omits it", async () => {
+  // De MLB Stats API levert soms een onvolledig team-object (alleen `name`, geen `abbreviation`
+  // of `clubName`). Zonder fallback belandt de volledige naam in de score-abbr-kolom en wordt die
+  // op smalle schermen tot "N..." afgekapt. De lokale afkorting-map lost dit op.
+  const game = {
+    gameDate: "2026-07-27T23:00:00Z",
+    status: { abstractGameState: "Final", detailedState: "Final" },
+    teams: {
+      away: { score: 3, isWinner: false, team: { name: "Atlanta Braves" } },
+      home: { score: 14, isWinner: true, team: { name: "New York Mets" } },
+    },
+  };
+  const html = scores.renderScoresHtml([], [game], [], () => false);
+  assert.match(html, /<span class="score-abbr">ATL<\/span>/);
+  assert.match(html, /<span class="score-abbr"><strong>NYM<\/strong><\/span>/); // winnaar vet
+  // De volledige naam mag niet in de afkorting-kolom staan.
+  assert.doesNotMatch(html, /score-abbr">(<strong>)?New York Mets/);
+});
+
 // --- all-star game rendering (regressie: "AmericanAmerican") ---
 test("renderScoresHtml renders the all-star game with league name + logo, not doubled text", () => {
   // Exact de vorm die de MLB Stats API voor de all-star game levert.

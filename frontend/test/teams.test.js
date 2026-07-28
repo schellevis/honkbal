@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { canonicalTeam } from "../js/util/teams.js";
+import { canonicalTeam, teamAbbr } from "../js/util/teams.js";
 
 test("canonicalTeam maps full MLB Stats API names to nicknames", () => {
   assert.equal(canonicalTeam("Boston Red Sox"), "red sox");
@@ -31,4 +31,19 @@ test("canonicalTeam is idempotent on already-canonical nicknames", () => {
 test("canonicalTeam leaves unknown/pseudo teams as normalized input", () => {
   assert.equal(canonicalTeam("AL All-Stars"), "al all-stars");
   assert.equal(canonicalTeam(""), "");
+});
+
+test("teamAbbr resolves a standard abbreviation from any known team form", () => {
+  // Fallback wanneer het API-team-object geen `abbreviation` heeft (SPEC §6.2): de volledige
+  // naam mag niet in de afkorting-kolom belanden (anders "New York Mets" -> "N...").
+  assert.equal(teamAbbr("Houston Astros"), "HOU");
+  assert.equal(teamAbbr("New York Mets"), "NYM");
+  assert.equal(teamAbbr("Washington Nationals"), "WSH");
+  assert.equal(teamAbbr("Chicago White Sox"), "CWS");
+  assert.equal(teamAbbr("astros"), "HOU"); // al-canonieke nickname
+});
+
+test("teamAbbr returns empty string for unknown/pseudo teams", () => {
+  assert.equal(teamAbbr("AL All-Stars"), "");
+  assert.equal(teamAbbr(""), "");
 });
