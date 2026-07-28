@@ -507,7 +507,8 @@ de topnavigatielink "schema" wijst óók naar `/avond.html` maar behoudt zijn la
   is de scorepagina). Sortering over de gezamenlijke set: **favoriet eerst**, daarbinnen live vóór
   preview, daarbinnen vergevorderde inning eerst (live) / vroegste `gameDate` eerst (preview).
 - Kop "nu bezig". Geen live wedstrijden → sectie volledig leeg/verborgen (geen lege tabel of
-  melding).
+  melding). De sectie sluit zonder losse tussenruimte aan op het schema eronder (net als de
+  overgang tussen twee schemadagen); geen extra `margin` tussen de live-tabel en het schema.
 - Dedup met het statische schema: voor elke getoonde live wedstrijd wordt de overeenkomstige
   statische rij (`data-away-team`/`data-home-team`-match binnen de schematabel) verborgen; bij elke
   refresh wordt de verborgen set opnieuw bepaald (een afgelopen wedstrijd verdwijnt uit de

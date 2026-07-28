@@ -211,6 +211,13 @@ tr.favorite-game + tr.favorite-game td {
 td { vertical-align: top; }
 p.tiny { font-size: 12px; }
 
+/* De "nu bezig"-sectie (SPEC §6.8) sluit direct aan op het schema eronder: geen losse
+   tussenruimte (bootstrap geeft .table een margin-bottom), net als de naadloze overgang
+   tussen twee schemadagen binnen dezelfde tabel. */
+#live-container .table {
+  margin-bottom: 0;
+}
+
 /* === BADGES (.st, .stp) === */
 .st {
   margin-left: 7px;
