@@ -491,11 +491,12 @@ de ESPN-postseason-bron (alleen `fetched_at` + aantal events, of "niet actief bu
 en het bestaan/timestamp van de gegenereerde `docs/`-hoofdbestanden. **Geen** verwijzingen meer naar
 `espn.json`, `tvgidsnl.json` of oude scorebestanden.
 
-### 6.8 Live-sectie ("nu") op de avond-tab [NEW, bèta §6.9]
-Met de bètafeature `live` aan (§6.9) toont de avond-tab bovenaan een client-side live-sectie
-met de wedstrijden die op dít moment bezig zijn, inclusief scores, en hernoemt de module het
-navigatielabel van de avond-tab client-side naar **"nu + avond"** (server-side blijft het
-"avond" zolang dit bèta is). Alleen de tab in de schedule-subnav (`.nav-pills`) wordt hernoemd;
+### 6.8 Live-sectie ("nu") op de avond-tab [NEW]
+De avond-tab toont bovenaan een client-side live-sectie met de wedstrijden die op dít moment
+bezig zijn, inclusief scores, en hernoemt het navigatielabel van de avond-tab client-side naar
+**"nu + avond"**. De sectie staat voor **iedereen** aan (geen opt-in; was tot juli 2026 de
+bètafeature `live`, §6.9). Server-side blijft het label "avond": zonder JS draait de module niet
+en is er ook geen live-sectie. Alleen de tab in de schedule-subnav (`.nav-pills`) wordt hernoemd;
 de topnavigatielink "schema" wijst óók naar `/avond.html` maar behoudt zijn label:
 - Alleen op pagina's met `page == 'avond'` (dus ook `index.html` zolang de default-tab avond is).
 - ES-module `live.js` + entry `live-entry.js` (zelfde patroon als §6.1/§6.2: geen inline blobs).
@@ -544,7 +545,9 @@ Experimentele features zijn **opt-in** via een "Bètafeatures"-sectie op de inst
   buiten de favorieten-flow (opslaan/wissen raakt ze niet).
 - Entry-modules van bètafeatures checken de flag vóór init; met de flag uit gedraagt de site zich
   exact als zonder de feature.
-- Bekende features: **`live`** (§6.8) en **`interest`** (hieronder).
+- Bekende features: **`interest`** (hieronder). Een feature die uit bèta gaat wordt uit
+  `BETA_FEATURES` én van de instellingenpagina verwijderd; de naam telt dan als onbekend en
+  verdwijnt vanzelf uit bestaande localStorage-payloads (zo was `live`, §6.8, tot juli 2026 bèta).
 
 **Interessefilter (`interest`):** slider op alle schemapagina's die alleen de interessantste
 wedstrijden toont, op basis van het build-time enrichment-percentiel (§11.2 punt 3):
