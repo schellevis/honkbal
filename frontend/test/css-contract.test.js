@@ -20,6 +20,9 @@ const REQUIRED_SELECTORS = [
   "empty-state",
   "scores-status",
   "loadmore-msg",
+  "interest-hidden",
+  "stale-hidden",
+  "day-hidden",
 ];
 
 for (const sel of REQUIRED_SELECTORS) {

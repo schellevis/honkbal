@@ -12,6 +12,19 @@ function nyCalendarDate(dateObj) {
   return `${get("year")}${get("month")}${get("day")}`;
 }
 
+// Kalenderdatum in Amsterdam als ISO-string (YYYY-MM-DD) — tijdzone-onafhankelijk, ook als de
+// bezoeker in een andere zone zit. Gebruikt door de veroudering van TBD-rijen (SPEC §6.10).
+export function amsCalendarDate(dateObj) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: AMS_TZ,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(dateObj);
+  const get = (type) => parts.find((p) => p.type === type)?.value ?? "";
+  return `${get("year")}-${get("month")}-${get("day")}`;
+}
+
 export function nyDateWindow(now, days = 5) {
   const result = [];
   const nyStr = nyCalendarDate(now);

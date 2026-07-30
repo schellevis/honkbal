@@ -16,7 +16,7 @@
 </tr>
 </thead>
 {% endif %}
-<tbody>
+<tbody data-date="{{ day.date_ams.isoformat() }}">
 {% for row in day.rows %}
 <tr data-away-team="{{ row.away_slug }}" data-home-team="{{ row.home_slug }}"{% if row.start_epoch is not none %} data-start="{{ row.start_epoch }}"{% endif %}{% if row.enrichment_percentile is not none %} data-interest="{{ row.enrichment_percentile }}"{% endif %}{% if row.is_postseason_row %} class="ps-row"{% endif %}>
 <th scope="row" width="40">{{ row.time_label }}</th>
