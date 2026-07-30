@@ -678,6 +678,7 @@ p.foot a:hover { color: var(--c-accent); }
 }
 
 .interest-hidden,
+.stale-hidden,
 .day-hidden {
   display: none;
 }

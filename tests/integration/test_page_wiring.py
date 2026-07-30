@@ -57,6 +57,7 @@ def test_schedule_pages_load_favorites_and_loadmore_and_sw(built_site, page):
     html = _read(built_site, page)
     assert "favorites-init.js" in html, f"{page} laadt favorites-init.js niet"
     assert "loadmore.js" in html, f"{page} laadt loadmore.js niet"
+    assert "stale-entry.js" in html, f"{page} laadt stale-entry.js niet (SPEC §6.10)"
     _assert_sw_registered(built_site, html)
 
 
@@ -64,6 +65,7 @@ def test_team_page_loads_favorites_loadmore_sw(built_site):
     html = _read(built_site, "dodgers.html")
     assert "favorites-init.js" in html
     assert "loadmore.js" in html
+    assert "stale-entry.js" in html
     _assert_sw_registered(built_site, html)
 
 

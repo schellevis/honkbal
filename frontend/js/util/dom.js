@@ -7,20 +7,29 @@ export function escapeHtml(str) {
     .replace(/'/g, "&#39;");
 }
 
+// Klassen waarmee een module een schema-rij kan verbergen zonder row.hidden te claimen
+// (dat hoort bij de live-dedup, SPEC §6.8): interessefilter (§6.9) en veroudering (§6.10).
+const HIDDEN_CLASSES = ["interest-hidden", "stale-hidden"];
+
+export function isRowVisible(row) {
+  if (row.hidden) return false;
+  if (!row.classList) return true;
+  return !HIDDEN_CLASSES.some((cls) => row.classList.contains(cls));
+}
+
 // Verberg elke dagkop (thead) waarvan de bijbehorende tbody geen zichtbare rij meer heeft.
-// Een rij telt als zichtbaar zolang hij niet door de live-dedup (row.hidden, SPEC §6.8) én niet
-// door het interessefilter (class interest-hidden, SPEC §6.9) verborgen is. Gedeeld door live.js
-// en interest.js: wie als laatste een rij wijzigt herberekent hiermee de koppen, zodat een kop
-// nooit verweesd achterblijft (alle games bezig) of onterecht verborgen blijft.
+// Een rij telt als zichtbaar zolang hij niet door de live-dedup (row.hidden, SPEC §6.8), niet
+// door het interessefilter (class interest-hidden, SPEC §6.9) én niet door de veroudering
+// (class stale-hidden, SPEC §6.10) verborgen is. Gedeeld door live.js, interest.js en stale.js:
+// wie als laatste een rij wijzigt herberekent hiermee de koppen, zodat een kop nooit verweesd
+// achterblijft (alle games bezig) of onterecht verborgen blijft.
 export function syncDayHeaders(doc) {
   if (!doc.querySelectorAll) return;
   for (const table of doc.querySelectorAll(".loadmore-container")) {
     for (const tbody of table.querySelectorAll("tbody")) {
       const rows = [...tbody.querySelectorAll("[data-away-team]")];
       if (!rows.length) continue;
-      const anyVisible = rows.some(
-        (r) => !r.hidden && !(r.classList && r.classList.contains("interest-hidden"))
-      );
+      const anyVisible = rows.some(isRowVisible);
       const thead = tbody.previousElementSibling;
       if (thead && thead.classList) thead.classList.toggle("day-hidden", !anyVisible);
     }

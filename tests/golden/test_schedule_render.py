@@ -79,6 +79,13 @@ def test_row_data_start_epoch_for_timed_games():
     assert f'data-start="{ts}"' in html
 
 
+def test_tbody_carries_day_date_for_stale_pruning():
+    """SPEC §6.10: elk dagblok draagt zijn ISO-datum, zodat TBD-rijen client-side kunnen
+    verouderen (datum-granulair, net als het build-time filter)."""
+    html = _render([_g(date(2026, 6, 21), 20, "Red Sox", "Yankees")])
+    assert '<tbody data-date="2026-06-21">' in html
+
+
 def test_empty_state_message():
     html = _render([_g(date(2026, 6, 21), 20, "River Cats", "Chihuahuas")])
     assert "Geen wedstrijden beschikbaar 😢" in html

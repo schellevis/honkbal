@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<title>Verouderd schema — Honkbal.net v2</title>
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<h1>Verouderd schema</h1>
+<!-- Reproduceert de situatie uit SPEC §6.10: een pagina die om 01:00 gebouwd is en 's ochtends
+     nog bekeken wordt. De starttijden worden hieronder relatief aan "nu" gezet, zodat de fixture
+     niet aan een vaste datum vastzit. -->
+<table class="table table-striped loadmore-container">
+<thead id="hdr-past"><tr><th colspan="2">GISTEREN</th></tr></thead>
+<tbody id="day-past">
+<tr id="row-past" data-away-team="brewers" data-home-team="giants"><th scope="row">21:45</th><td>Brewers @ Giants</td></tr>
+<tr id="row-past-tbd" data-away-team="rockies" data-home-team="padres"><th scope="row">TBD</th><td>Rockies @ Padres</td></tr>
+</tbody>
+<thead id="hdr-today"><tr><th colspan="2">VANDAAG</th></tr></thead>
+<tbody id="day-today">
+<tr id="row-running" data-away-team="dodgers" data-home-team="mariners"><th scope="row">04:10</th><td>Dodgers @ Mariners</td></tr>
+<tr id="row-future" data-away-team="rangers" data-home-team="rays"><th scope="row">18:10</th><td>Rangers @ Rays</td></tr>
+</tbody>
+</table>
+<script type="module">
+import { init } from "/js/stale.js";
+import { amsCalendarDate } from "/js/util/time.js";
+
+const HOUR = 3600 * 1000;
+const now = Date.now();
+const setStart = (id, ms) => {
+  document.getElementById(id).dataset.start = String(Math.floor(ms / 1000));
+};
+setStart("row-past", now - 8 * HOUR);      // gisteravond, ver buiten het grace-window
+setStart("row-running", now - 2 * HOUR);   // vermoedelijk nog bezig
+setStart("row-future", now + 6 * HOUR);    // vanavond
+document.getElementById("day-past").dataset.date = amsCalendarDate(new Date(now - 24 * HOUR));
+document.getElementById("day-today").dataset.date = amsCalendarDate(new Date(now));
+
+init(document, { recheckMs: 0 });
+document.body.dataset.stalePruned = "1";
+</script>
+</body>
+</html>

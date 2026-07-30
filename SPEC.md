@@ -176,6 +176,10 @@ bepaalt welke rij van een paar behouden blijft (laagste seq eerst).
   Getimede regels: moment-nauwkeurig (`start > nu − grace`). TBD-regels (geen starttijd):
   datum-granulair (`date_ams >= vandaag`), want zonder tijd valt niet te bepalen of een wedstrijd
   vandaag al voorbij is.
+  **Let op:** dit filter is build-time en dus een momentopname; de gepubliceerde pagina blijft
+  daarna uren staan (buildcadans §8). De browser past hetzelfde filter opnieuw toe op de
+  gerenderde rijen (§6.10), zodat een reeds afgelopen wedstrijd niet tot de volgende build
+  blijft staan.
 - **Allowlist (render-guard):** alleen renderen als away **of** home een bekend MLB-team is (of een
   all-star pseudo-team). Zie §4.2. **[LEGACY]** (in legacy heette de allowlist-array verwarrend
   `extrateams`). Door de versmalde fetch-scope is dit niet meer de primaire affiliate-filter, maar
@@ -565,6 +569,32 @@ wedstrijden toont, op basis van het build-time enrichment-percentiel (§11.2 pun
 - De drempel wordt bewaard in localStorage (`honkbal-interest-threshold`) en bij "meer laden"
   (§6.6) opnieuw toegepast op bijgeladen rijen (MutationObserver).
 
+### 6.10 Veroudering van het statische schema [NEW]
+Het schemafilter van §3.2 is build-time en dus een momentopname, terwijl de pagina daarna uren
+blijft staan: tussen de nachtbuild (01:00) en de ochtendbuild (10:00) zit een gat van negen uur
+(§8). Een pagina die om 01:00 gebouwd is bevat dus nog de wedstrijden van gisteravond die om
+01:00 net binnen het grace-window vielen (bv. 21:45 en 22:10), en die stonden er 's ochtends om
+05:55 nog steeds — allebei al uren afgelopen. De browser past daarom hetzelfde filter opnieuw toe:
+- ES-module `stale.js` + entry `stale-entry.js` op **elke** schemapagina (ook team-pagina's, ook
+  zonder live-sectie). Geen opt-in, geen bèta.
+- Zelfde grens en zelfde tweedeling als §3.2, met `GRACE_MS` in `stale.js` gelijk aan
+  `LIVE_GRACE_HOURS` in `config/toggles.py`: getimede rijen verouderen moment-nauwkeurig op
+  `data-start` (`nu >= start + grace`), rijen zonder starttijd (TBD) datum-granulair op de
+  `data-date` van hun dagblok (`<tbody data-date="YYYY-MM-DD">`, Amsterdamse kalenderdatum) —
+  pas verbergen als die dag zelf voorbij is.
+- Verouderde rijen krijgen class `stale-hidden` (CSS `display:none`) — bewust een eigen klasse,
+  net als `interest-hidden` (§6.9), zodat de veroudering nooit vecht met de rij-dedup van de
+  live-sectie (`hidden`, §6.8). Onleesbare `data-start` of een dagblok zonder `data-date` →
+  **niet** verbergen (het statische schema blijft leidend).
+- Dagkoppen zonder zichtbare rijen worden mee verborgen via dezelfde kop-synchronisatie als
+  §6.8/§6.9; die telt nu `hidden`, `interest-hidden` én `stale-hidden` mee.
+- Opnieuw wegen: bij het laden, bij "meer laden" (§6.6, MutationObserver) en elke 60 s, zodat een
+  openstaande pagina een wedstrijd die over de grens gaat zonder reload laat verdwijnen.
+- Een wedstrijd die ná het grace-window nog loopt (delay/extra innings) verdwijnt uit het
+  statische schema maar blijft op de avond-tab zichtbaar in de live-sectie (§6.8), die op status
+  in plaats van op starttijd werkt. Zonder JS gebeurt er niets en blijft de build-time output
+  staan (§9).
+
 ---
 
 ## 7. Assets en cache-busting
@@ -593,6 +623,8 @@ wedstrijden toont, op basis van het build-time enrichment-percentiel (§11.2 pun
 - **MLB Stats API onbereikbaar (client):** scores/standen tonen cache + offline-melding.
 - **Tail-JSON onbereikbaar (client):** "meer laden" meldt dat het offline niet lukt; de inline
   beginbatch blijft staan (§5.9).
+- **Geen JS (of `stale.js` niet geladen):** het schema toont de build-time selectie (§3.2); rijen
+  van afgelopen wedstrijden verouderen dan niet mee (§6.10) tot de volgende build.
 
 ---
 
