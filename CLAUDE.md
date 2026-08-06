@@ -154,10 +154,11 @@ frontend/e2e/                  # Playwright (DOM, offline, SW)
 
 1. **gate-job** (lichte deploy-gate): `uv sync --frozen` -> `ruff check` -> `pytest -q`. Geen node:test/Playwright — die draaien op push/PR in `ci.yml`; een cron-deploy gebruikt dezelfde commit met alleen verse data, en de render-stap valideert config en faalt luid. Blokkeert de build-job.
 2. **build-job**: data-cache herstellen -> zelfherstel ESPN watch-apiKey (alleen als de vorige fetch niet op bron `espn` draaide: `npm run discover:espn`, faalt zacht) -> `honkbal fetch` -> `version.txt` schrijven -> `honkbal render` -> data-cache opslaan -> publicatie-artifact.
+3. **deploy-job**: GitHub Pages-deploy -> bunny.net-cache purgen (honkbal.net draait achter een bunny-pull-zone vóór Pages; secrets `BUNNY_API_KEY` + `BUNNY_PULLZONE_ID`, faalt zacht met waarschuwing als ze ontbreken of de purge mislukt).
 
 ### `rebuild.yml` — geen fetch (handmatig)
 
-Zelfde lichte gate-job. Build-job herstelt de data-cache (faalt luid als die ontbreekt) -> `honkbal render` -> publicatie-artifact. Bedoeld voor layout-/template-fixes zonder nieuwe data.
+Zelfde lichte gate-job. Build-job herstelt de data-cache (faalt luid als die ontbreekt) -> `honkbal render` -> publicatie-artifact; deploy-job purget daarna ook de bunny.net-cache. Bedoeld voor layout-/template-fixes zonder nieuwe data.
 
 ### `ci.yml` — volledige PR-gate
 

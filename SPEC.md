@@ -684,6 +684,10 @@ De zenderlogo's (§3.3) staan voor iedereen aan; twee gewone instellingen (geen 
   niet stil maar logt duidelijk.
 - **[NEW] CI-validatie:** config-datumvalidatie (§4.3) en de acceptatietests (§12) draaien als
   gate vóór publicatie.
+- **[NEW] CDN-purge:** honkbal.net draait achter een bunny.net-pull-zone vóór GitHub Pages; na
+  elke geslaagde deploy (build- én rebuild-workflow) purget CI de hele pull zone via de
+  bunny-API (secrets `BUNNY_API_KEY`/`BUNNY_PULLZONE_ID`). Faalt zacht: ontbrekende secrets of
+  een mislukte purge geven een waarschuwing, de cache verloopt dan volgens TTL.
 
 ---
 
