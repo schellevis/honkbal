@@ -1,0 +1,46 @@
+{
+  "data": {
+    "airings": [
+      {
+        "id": "a1",
+        "name": "MLB: Cubs vs Dodgers",
+        "type": "UPCOMING",
+        "startDateTime": "2026-08-06T00:40:00Z",
+        "endDateTime": "2026-08-06T03:40:00Z",
+        "feedName": null,
+        "network": {"abbreviation": "nl_espn4", "name": "ESPN4"},
+        "subcategory": {"name": "MLB"}
+      },
+      {
+        "id": "a2",
+        "name": "MLB: Yankees vs Red Sox (NL)",
+        "type": "UPCOMING",
+        "startDateTime": "2026-08-06T17:05:00Z",
+        "endDateTime": null,
+        "feedName": "NL",
+        "network": {"abbreviation": "nl_espn2", "name": "ESPN2"},
+        "subcategory": {"name": "MLB"}
+      },
+      {
+        "id": "a3",
+        "name": "MLB: Cubs vs Dodgers",
+        "type": "REPLAY",
+        "startDateTime": "2026-08-06T09:00:00Z",
+        "endDateTime": null,
+        "feedName": null,
+        "network": {"abbreviation": "nl_espn_extra", "name": "ESPN Extra"},
+        "subcategory": {"name": "MLB"}
+      },
+      {
+        "id": "a4",
+        "name": "MLB Quick Pitch",
+        "type": "UPCOMING",
+        "startDateTime": "2026-08-06T06:00:00Z",
+        "endDateTime": null,
+        "feedName": null,
+        "network": {"abbreviation": "nl_espn3", "name": "ESPN3"},
+        "subcategory": {"name": "MLB"}
+      }
+    ]
+  }
+}

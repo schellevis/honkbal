@@ -46,10 +46,11 @@ statische output.
 - Client-side scores en standen via de MLB Stats API. **[LEGACY, behouden]**
 - Favorieten (localStorage), settings-pagina, service worker, debug-pagina.
 
+- Tv-gids: ESPN-zenderlogo's bij uitgezonden wedstrijden (§3.3, herleefd op nieuwe bronnen). **[REVIVED]**
+
 **Uit scope / [DROP]:**
-- **ESPN-tv-uitzendgids** (`gids-grab`, `gids-read`, `espn.json`, `simple_html_dom`): de
-  "welk kanaal zendt uit"-indicatoren en de `espn/`-kanaallogo's (ESPN 1/2/3) op het schema.
-- **tvgids.nl-tak** (`tvgidsnl.php`, `tvgidsnl.json`): in legacy al volledig dode code.
+- De legacy-tv-gids-implementatie (`gids-grab`, `gids-read`, `espn.json`, `simple_html_dom`,
+  espn.nl-HTML-scraping): vervangen door §3.3 (ESPN watch-API + tvgids.nl-JSON-fallback).
 - Backend-/publicatiescripts en externe-serviceconfig buiten deze generator.
 
 **Uitgelichte wedstrijden ([NEW], geïmplementeerd):** regelgebaseerde "interessantheid" per
@@ -192,12 +193,55 @@ bepaalt welke rij van een paar behouden blijft (laagste seq eerst).
   `ScheduleMeta.modified` = nieuwste geldige `Last-Modified`; ontbreekt die voor álle responses, dan
   `modified = refreshed` (fetch-moment).
 
-### 3.3 ~~ESPN-tv-uitzendgids~~ — [DROP]
-`gids-grab`/`gids-read`/`espn.json`/`simple_html_dom` en de `espn/`-kanaallogo's vervallen. Het
-schema toont **geen uitzendkanaal-indicatie** meer.
+### 3.3 ESPN-tv-uitzendgids [REVIVED — nieuwe bronnen]
+**Doel:** bij wedstrijden die ESPN Nederland uitzendt het zenderlogo (espn/espn2/espn3/espn4/
+espn_extra) in de schemarij tonen, met een "NL"-badge bij Nederlands commentaar. De legacy-
+implementatie (espn.nl-HTML-scrape) is vervallen; dit is de herbouw op JSON-bronnen.
 
-### 3.4 ~~tvgids.nl~~ — [DROP]
-In legacy al dode code (`site.php` laadt `tvgidsnl.json` niet). Volledig verwijderd.
+**Bronketen (adapter `fetch/tv_guide.py`, patroon = playoff-odds §11.4):**
+- Primair: ESPN watch-GraphQL-API (`watch.graph.api.espn.com/api`), één GET per dag over
+  `tv_guide_days` dagen (vandaag t/m +3), variabelen `countryCode=NL`, `type=UPCOMING`,
+  MLB-categoryId, `day` + `tz` in Amsterdam-lokale tijd (DST-afhankelijk afgeleid). `apiKey` en
+  `categoryId` zijn publieke client-side constanten uit de espn.nl-paginabundel (geen secrets;
+  jaarlijks-onderhouditem, live gevalideerd 2026-08-05). ESPN telt pas als mislukt wanneer
+  **alle** dagcalls falen — een dag zonder MLB-uitzendingen is legitiem.
+- Fallback: tvgids.nl-JSON (`json.tvgids.nl/v4/programs/?day=0..3&channels=148,468,469,470`;
+  148=ESPN1, 468=ESPN2, 469=ESPN3, 470=ESPN4 — géén ESPN Extra). Beide payloadvormen (dict per
+  kanaal-id en lijst met `ch_id`) worden geaccepteerd. Alleen titels die op een wedstrijd wijzen
+  tellen mee (teamscheider "X vs Y"/"X - Y", postseason-/all-star-aanduiding of de generieke
+  titel "Major League Baseball"); magazineprogramma's ("MLB Quick Pitch") vallen af.
+
+**Genormaliseerd contract — `.data/tv_guide.json`** (stabiel; bronwijziging breekt alleen de
+adapter): `fetched_at`, `season`, `source` (`espn`|`tvgids`) en `airings[]` met per airing
+`channel` (kanaalslug), `start`/`end` (ISO-8601, Amsterdam), `teams` (honkbal-slugs via
+`normalize_team`, `[]` indien onbekend), `nl_commentary` (bool; tolerant gedetecteerd uit
+titel/feedName: `(NL)`, "Nederlands(talig) commentaar", "NL-commentaar", feedName die als geheel
+"NL" is — een kale "NL" in de titel telt bewust níét: "NL All-Stars"), `live` (replays `false`)
+en `title` (ruw, alleen debug). **Carry-over:** airings uit de vorige cache waarvan de start
+binnen `[nu − live_grace_hours, nu]` ligt blijven behouden (dedup op kanaal + start ±5 min),
+zodat een lopende wedstrijd zijn logo houdt bij een build midden in de wedstrijd.
+
+**Zacht falen:** beide bronnen stuk → waarschuwing, bestaande cache blijft, build faalt nooit.
+Fetch draait binnen `showfrom <= nu < einde` — bewust dóór de postseason heen.
+
+**Matching (render-time, `honkbal/tv_guide.py::build_tv_lookup`):** alleen airings met
+`live=true`; elke airing matcht hoogstens één wedstrijd.
+1. **Teampass:** ongeordende teamset-gelijkheid én `|game-start − airing-start| ≤
+   tv_match_tolerance_min` (75 min); kleinste verschil wint (doubleheaders); een al gematchte
+   wedstrijd houdt zijn eerste kanaal (simulcast).
+2. **Tijdpass** (teamloze airings, m.n. tvgids/all-star): alleen toewijzen als **precies één**
+   nog niet-gematchte getimede wedstrijd binnen de tolerantie valt; bij ambiguïteit géén logo.
+TBD-wedstrijden matchen nooit; replays vallen dubbel af (`live=false` + tijdtolerantie).
+
+**Render:** gematchte rij krijgt vooraan de cel
+`<div class="espn" data-channel="<slug>"[ data-nlcom="1"]>[<span class="comm">NL</span>]<logo></div>`
+met het logo als `/img/espn/<slug>.png?<asset_version>` (+ dark-variant via `<picture>` indien
+aanwezig; geen height-attribuut — breedte per kanaal komt uit CSS). Ontbrekend asset of geen
+match → geen div. Client-side zichtbaarheidsinstellingen: §6.11.
+
+### 3.4 tvgids.nl [REVIVED als fallback]
+In legacy dode code; in v2 uitsluitend de fallback-bron binnen §3.3 (zelfde genormaliseerde
+output; geen `nl_commentary`-detectiebron en geen ESPN Extra).
 
 ### 3.5 ESPN-API postseason-verrijking [FIX — heractivatie]
 **Doel:** postseason-rijen verrijken met ronde-label (bv. "ALCS Game 1\*") en serie-stand (bv.
@@ -252,8 +296,11 @@ In legacy al dode code (`site.php` laadt `tvgidsnl.json` niet). Volledig verwijd
 - `countdown_from = "01-01"` (vanaf welke dag-maand de opening-day-countdown tonen).
 - `live_grace_hours = 4` **[NEW]**: getimede wedstrijden blijven tot dit aantal uren na hun
   starttijd in de gerenderde schema's staan (vermoedelijk nog bezig, §3.2).
-- ~~`espnpsmatchtimes`~~ **[DROP]** (hoorde bij de tv-gids-matching).
-- ~~`espnmatchtvgidsinps`~~ **[DROP]** (tvgids.nl).
+- `tv_guide_days = 4` **[NEW]**: aantal dagen tv-gids vooruit ophalen (§3.3).
+- `tv_match_tolerance_min = 75` **[NEW]**: max. verschil tussen wedstrijd- en uitzendingsstart
+  bij het matchen (§3.3).
+- ~~`espnpsmatchtimes`~~ **[DROP]** (legacy tv-gids-matching; v2 matcht per §3.3).
+- ~~`espnmatchtvgidsinps`~~ **[DROP]** (legacy tvgids.nl-fallbackgedrag).
 
 ### 4.2 Teamlijsten
 - `teams_nl` (15 NL-teams), `teams_al` (15 AL-teams). Allowlist `mlb_teams = teams_nl + teams_al`.
@@ -461,7 +508,8 @@ met een **"meer laden"**-knop eronder. De renderlogica blijft **volledig server-
 
 ### 6.4 Settings [LEGACY, gemoderniseerd]
 Checkbox-grid met alle teams. Sync met favorieten-module; opslaan → statusmelding (2,5 s); wissen
-→ alles uit + opslaan; cross-tab via `storage`.
+→ alles uit + opslaan; cross-tab via `storage`. Daarnaast de tv-gids-opties (§6.11) en de
+bètafeature-checkboxes (§6.9), beide direct opgeslagen.
 
 ### 6.5 Service worker [LEGACY, expliciet contract]
 - Cacheversie-naam ophogen bij wijziging pre-cache of strategie.
@@ -595,6 +643,21 @@ blijft staan: tussen de nachtbuild (01:00) en de ochtendbuild (10:00) zit een ga
   in plaats van op starttijd werkt. Zonder JS gebeurt er niets en blijft de build-time output
   staan (§9).
 
+### 6.11 Tv-gids-instellingen [NEW]
+De zenderlogo's (§3.3) staan voor iedereen aan; twee gewone instellingen (geen bèta) op
+`/settings.html` regelen de zichtbaarheid client-side (het schema is statische HTML):
+- **Zenderlogo's aan/uit** — `localStorage`-key `honkbal-espn-logos`; afwezig of `"1"` = aan,
+  `"0"` = uit. Default (geen entry) = **aan**.
+- **Alleen bij Nederlands commentaar** — key `honkbal-espn-nl-only`; afwezig of `"0"` = uit,
+  `"1"` = aan. Default = **uit**.
+- ES-module `espn.js` + entry `espn-entry.js` op elke schemapagina zet body-klassen: `espn-off`
+  (verbergt alle `div.espn`) en `espn-nl-only` (verbergt `div.espn` zonder `data-nlcom`). Door de
+  body-klasse-aanpak gelden de regels automatisch ook voor tail-rijen van "meer laden" (§6.6) —
+  geen per-rij JS of MutationObserver.
+- Checkboxes op de instellingenpagina dragen `name="tv"` (values `logos`/`nlonly`) en worden
+  direct opgeslagen (patroon §6.9); cross-tab sync via `storage`-events. Zonder JS of zonder
+  opgeslagen keuze toont het schema gewoon alle logo's uit de build.
+
 ---
 
 ## 7. Assets en cache-busting
@@ -621,6 +684,9 @@ blijft staan: tussen de nachtbuild (01:00) en de ochtendbuild (10:00) zit een ga
 - **Geen ESPN-API-data in postseason:** val terug op date-derived ronde-labels (§5.6 stap 2);
   geen serie-stand.
 - **MLB Stats API onbereikbaar (client):** scores/standen tonen cache + offline-melding.
+- **Tv-gids-bronnen onbereikbaar:** bestaande `tv_guide.json` blijft (soft-fail §3.3); zonder
+  bruikbare cache rendert het schema zonder zenderlogo's. Alleen tvgids.nl beschikbaar → minder
+  matches (geen teamnamen op de meeste dagen, geen ESPN Extra, geen NL-badges).
 - **Tail-JSON onbereikbaar (client):** "meer laden" meldt dat het offline niet lukt; de inline
   beginbatch blijft staan (§5.9).
 - **Geen JS (of `stale.js` niet geladen):** het schema toont de build-time selectie (§3.2); rijen
@@ -631,6 +697,8 @@ blijft staan: tussen de nachtbuild (01:00) en de ochtendbuild (10:00) zit een ga
 ## 10. Jaarlijks onderhoud
 Nieuw `start[YYYY]`-blok (alle verplichte datums + uitzonderingen). Config-validatie (§4.3) vangt
 ontbrekende/ongeldige velden. Controleer standaardtab, datumkoppen, `debug.html`.
+Tv-gids (§3.3): hervalideer de ESPN watch-API-constanten (`apiKey`/`categoryId`) en de
+tvgids.nl-kanaal-id's zodra de fetch structureel op de fallback of op niets draait.
 
 ---
 
@@ -731,6 +799,14 @@ Vaste fixtures + verwachte uitkomsten voor minimaal:
 15. Feed-ontdekking (§3.2): de diagnostische run over range 105..161 wijst per `team_id` correct aan
     welke een geldig MLB-teamfeed leveren (inclusief de all-star-pseudo-feed) en welke alleen
     affiliate-/lege feeds; de afgeleide mapping dekt precies de 30 MLB-teams + all-star.
+16. Tv-gids (§3.3, met gepinde fixtures voor beide bronnen): adapter-parsing (kanaal-/team-
+    normalisatie, UTC→Amsterdam, beide tvgids-payloadvormen), de NL-commentaar-detectiematrix
+    (incl. negatief "NL All-Stars"), magazinefilter, ESPN-totaalfalen → tvgids-fallback,
+    beide-falen → cache intact, carry-over; matching (ongeordende teamset, tolerantiegrens,
+    doubleheader-dichtstbij, teamloos-precies-één vs. ambiguïteit, TBD/replay nooit); render
+    (gematchte rij → `div.espn` + dark-`<source>` + `?<asset_version>`, NL-badge aan/afwezig,
+    geen div zonder match); client-instellingen (§6.11: defaults zonder localStorage,
+    body-klasse-waarheidstabel, cross-tab sync, direct opslaan).
 
 Vergelijking via semantische snapshots (genormaliseerd model + DOM-fragmenten), niet volledige
 HTML-bytes.

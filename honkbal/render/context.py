@@ -13,8 +13,9 @@ from honkbal.config.teams import normalize_team
 from honkbal.models import Game, PostseasonData
 from honkbal.render.filters import should_render, uitzondering_code
 from honkbal.render.labels import date_header_label, postseason_label, special_label
-from honkbal.render.logos import display_name, logo_html
+from honkbal.render.logos import channel_logo_html, display_name, logo_html
 from honkbal.season import ActiveSeason
+from honkbal.tv_guide import TvLookup
 
 
 @dataclass(frozen=True)
@@ -34,6 +35,7 @@ class RowContext:
     enrichment_reasons: tuple[str, ...] = ()
     enrichment_percentile: int | None = None  # data-interest (SPEC §6.9)
     start_epoch: int | None = None  # starttijd in epoch-seconden; dedup live-sectie (SPEC §6.8)
+    tv_html: Markup = Markup("")  # zenderlogo tv-gids, leeg zonder match (SPEC §3.3)
 
 
 @dataclass(frozen=True)
@@ -72,6 +74,7 @@ def build_page_context(
     clock: Clock,
     img_dir: Path,
     asset_version: str,
+    tv_lookup: TvLookup | None = None,
 ) -> PageContext:
     filtered = [
         g for g in games
@@ -113,9 +116,23 @@ def build_page_context(
             if ps_descr is not None and "*" in ps_descr:
                 has_ps_footnote = True
 
+            away_slug = normalize_team(g.away)
+            home_slug = normalize_team(g.home)
+
+            tv_html = Markup("")
+            if tv_lookup and start_epoch is not None:
+                tv = tv_lookup.get((start_epoch, away_slug, home_slug))
+                if tv is not None:
+                    tv_html = channel_logo_html(
+                        tv.channel,
+                        img_dir=img_dir,
+                        asset_version=asset_version,
+                        nl_commentary=tv.nl_commentary,
+                    )
+
             rows.append(RowContext(
-                away_slug=normalize_team(g.away),
-                home_slug=normalize_team(g.home),
+                away_slug=away_slug,
+                home_slug=home_slug,
                 time_label=time_label,
                 away_logo=away_logo,
                 home_logo=home_logo,
@@ -131,6 +148,7 @@ def build_page_context(
                     g.enrichment.percentile if g.enrichment is not None else None
                 ),
                 start_epoch=start_epoch,
+                tv_html=tv_html,
             ))
 
         days.append(DayBlock(

@@ -20,11 +20,12 @@ def _clock():
     return FrozenClock(datetime(2026, 6, 21, 12, tzinfo=AMSTERDAM))
 
 
-def _render(games, page="alles"):
+def _render(games, page="alles", tv_lookup=None):
     c = _clock()
     s = select_active_season(c)
     ctx = build_page_context(games, page=page, team_slug_q=None, season=s,
-                             postseason=None, clock=c, img_dir=IMG, asset_version="v1")
+                             postseason=None, clock=c, img_dir=IMG, asset_version="v1",
+                             tv_lookup=tv_lookup)
     inline, tail = split_context(ctx)
     return render_schedule_page(inline, asset_version="v1", clock=c, season=s,
                                 inline_days=inline.days,
@@ -84,6 +85,38 @@ def test_tbody_carries_day_date_for_stale_pruning():
     verouderen (datum-granulair, net als het build-time filter)."""
     html = _render([_g(date(2026, 6, 21), 20, "Red Sox", "Yankees")])
     assert '<tbody data-date="2026-06-21">' in html
+
+
+def test_tv_guide_channel_logo_and_nl_badge():
+    """SPEC §3.3: gematchte rij draagt de tv-gids-div met zenderlogo en evt. NL-badge."""
+    from honkbal.tv_guide import TvMatch
+
+    game = _g(date(2026, 6, 21), 20, "Red Sox", "Yankees")
+    ts = int(datetime(2026, 6, 21, 20, 5, tzinfo=AMSTERDAM).timestamp())
+    lookup = {(ts, "red sox", "yankees"): TvMatch("espn2", True)}
+    html = _render([game], tv_lookup=lookup)
+
+    assert '<div class="espn" data-channel="espn2" data-nlcom="1">' in html
+    assert '<span class="comm">NL</span>' in html
+    assert '<img class="espn2" src="/img/espn/espn2.png?v1" alt="ESPN2" />' in html
+    assert 'srcset="/img/espn/espn2-dark.png?v1" media="(prefers-color-scheme: dark)"' in html
+
+
+def test_tv_guide_absent_without_match():
+    """SPEC §3.3: zonder match geen tv-gids-div; zonder NL-commentaar geen badge/attribuut."""
+    plain = _render([_g(date(2026, 6, 21), 20, "Red Sox", "Yankees")])
+    assert 'class="espn"' not in plain
+
+    from honkbal.tv_guide import TvMatch
+
+    ts = int(datetime(2026, 6, 21, 20, 5, tzinfo=AMSTERDAM).timestamp())
+    lookup = {(ts, "red sox", "yankees"): TvMatch("espn", False)}
+    html = _render([_g(date(2026, 6, 21), 20, "Red Sox", "Yankees")], tv_lookup=lookup)
+    assert '<div class="espn" data-channel="espn">' in html
+    assert "data-nlcom" not in html
+    assert '<span class="comm">' not in html
+    # espn heeft in de fixtures geen dark-variant: kale <img>, geen <picture>.
+    assert "<picture>" not in html
 
 
 def test_empty_state_message():

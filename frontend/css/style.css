@@ -269,11 +269,14 @@ picture.team { margin-right: 4px; }
 img.espn { width: 40px; }
 img.espn2, img.espn3, img.espn4 { width: 50px; }
 img.espn_extra { width: 30px; }
-a.espn:hover { text-decoration: none; }
 img.espn, img.espn2, img.espn3, img.espn4 { padding-top: 9px; }
 div.espn { float: right; font-weight: normal; display: block; position: relative; top: -5px; margin-left: 7px; }
 span.comm { color: var(--c-text-muted); font-size: 8px; font-family: system-ui, sans-serif; font-weight: 700; position: relative; top: 4px; margin: 0 5px 0 3px; }
 span.logofill { margin-left: 3px; }
+
+/* Tv-gids-instellingen (SPEC §6.11): body-klassen gezet door espn.js. */
+body.espn-off div.espn { display: none; }
+body.espn-nl-only div.espn:not([data-nlcom]) { display: none; }
 
 /* === SCORES === */
 /* De team-cel op scores/live-rijen: logo + naam/afkorting + score in een flex-rij.
@@ -570,14 +573,16 @@ p.foot a:hover { color: var(--c-accent); }
   }
 }
 
-/* === BETAFEATURES (SPEC §6.9) === */
-.beta-options {
+/* === BETAFEATURES (SPEC §6.9) + TV-GIDS-OPTIES (SPEC §6.11) === */
+.beta-options,
+.tv-options {
   display: flex;
   flex-direction: column;
   gap: 10px;
 }
 
-.beta-option {
+.beta-option,
+.tv-option {
   display: flex;
   align-items: flex-start;
   gap: 10px;
@@ -585,7 +590,8 @@ p.foot a:hover { color: var(--c-accent); }
   cursor: pointer;
 }
 
-.beta-option input {
+.beta-option input,
+.tv-option input {
   margin-top: 3px;
 }
 

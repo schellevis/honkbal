@@ -23,6 +23,11 @@ const REQUIRED_SELECTORS = [
   "interest-hidden",
   "stale-hidden",
   "day-hidden",
+  "espn-off",
+  "espn-nl-only",
+  "div.espn",
+  ".comm",
+  "tv-option",
 ];
 
 for (const sel of REQUIRED_SELECTORS) {

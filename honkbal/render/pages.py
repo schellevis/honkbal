@@ -13,6 +13,7 @@ from honkbal.render.context import PageContext, build_page_context, default_tab
 from honkbal.render.env import make_env
 from honkbal.render.tail import InlineContext
 from honkbal.season import ActiveSeason
+from honkbal.tv_guide import TvAiring, build_tv_lookup
 
 
 @dataclass
@@ -122,6 +123,7 @@ def render_all_schedule_pages(
     asset_version: str,
     out_dir: Path,
     live_windows: str | None = None,
+    tv_lookup=None,
 ) -> dict[str, str]:
     from honkbal.render.tail import build_tail_json, split_context, write_tail
 
@@ -132,6 +134,7 @@ def render_all_schedule_pages(
         ctx = build_page_context(
             games, page=page, team_slug_q=None, season=season,
             postseason=postseason, clock=clock, img_dir=img_dir, asset_version=asset_version,
+            tv_lookup=tv_lookup,
         )
         inline_ctx, remaining = split_context(ctx)
         tail_count = sum(len(d.rows) for d in remaining)
@@ -154,6 +157,7 @@ def render_all_schedule_pages(
     ctx_idx = build_page_context(
         games, page=dtab_page, team_slug_q=None, season=season,
         postseason=postseason, clock=clock, img_dir=img_dir, asset_version=asset_version,
+        tv_lookup=tv_lookup,
     )
     inline_idx, remaining_idx = split_context(ctx_idx)
     tail_count_idx = sum(len(d.rows) for d in remaining_idx)
@@ -178,6 +182,7 @@ def render_all_schedule_pages(
         ctx_t = build_page_context(
             games, page="team", team_slug_q=tslug, season=season,
             postseason=postseason, clock=clock, img_dir=img_dir, asset_version=asset_version,
+            tv_lookup=tv_lookup,
         )
         inline_t, remaining_t = split_context(ctx_t)
         tail_count_t = sum(len(d.rows) for d in remaining_t)
@@ -213,6 +218,7 @@ def render_site(
     asset_version: str,
     clock: Clock,
     img_dir: Path | None = None,
+    tv_airings: list[TvAiring] | None = None,
 ) -> RenderReport:
     """Render full site to out_dir.
 
@@ -243,6 +249,9 @@ def render_site(
     filtered_games = [g for g in games if _keep(g)]
     report.game_count = len(filtered_games)
 
+    # Tv-gids (SPEC §3.3): koppel uitzendingen eenmalig aan de gefilterde gameslijst.
+    tv_lookup = build_tv_lookup(filtered_games, tv_airings) if tv_airings else None
+
     # Use frontend/static/img as default img_dir
     _repo = Path(__file__).resolve().parent.parent.parent
     _img_dir = img_dir if img_dir is not None else (_repo / "frontend" / "static" / "img")
@@ -261,6 +270,7 @@ def render_site(
         # grace-window (4u), dus een net weggefilterde-maar-mogelijk-nog-lopende game
         # telt hier nog mee.
         live_windows=live_poll_windows(games, clock=clock),
+        tv_lookup=tv_lookup,
     )
     report.written.extend(f"{k}.html" for k in rendered)
 
