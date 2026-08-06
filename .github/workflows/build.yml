@@ -110,3 +110,23 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v5
+
+      # bunny.net (CDN vóór GitHub Pages op honkbal.net) cachet de site; zonder purge blijft
+      # een verse deploy tot de TTL oud. Purge de hele pull zone na een geslaagde deploy.
+      # Secrets: BUNNY_API_KEY (account-API-key) + BUNNY_PULLZONE_ID. Ontbreken ze, of faalt
+      # de purge, dan alleen een waarschuwing — de deploy zelf is dan al gelukt.
+      - name: Purge bunny.net-cache
+        env:
+          BUNNY_API_KEY: ${{ secrets.BUNNY_API_KEY }}
+          BUNNY_PULLZONE_ID: ${{ secrets.BUNNY_PULLZONE_ID }}
+        run: |
+          if [ -z "$BUNNY_API_KEY" ] || [ -z "$BUNNY_PULLZONE_ID" ]; then
+            echo "::warning::BUNNY_API_KEY/BUNNY_PULLZONE_ID niet gezet — bunny-cache niet gepurged"
+            exit 0
+          fi
+          if curl -sf -X POST "https://api.bunny.net/pullzone/${BUNNY_PULLZONE_ID}/purgeCache" \
+               -H "AccessKey: ${BUNNY_API_KEY}" -H "Content-Length: 0"; then
+            echo "bunny-cache gepurged"
+          else
+            echo "::warning::bunny-purge mislukt — cache verloopt volgens TTL"
+          fi

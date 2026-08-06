@@ -70,3 +70,20 @@ jobs:
     steps:
       - id: deployment
         uses: actions/deploy-pages@v5
+
+      # Zelfde purge als build.yml: bunny.net-cache legen na een geslaagde deploy (zacht falen).
+      - name: Purge bunny.net-cache
+        env:
+          BUNNY_API_KEY: ${{ secrets.BUNNY_API_KEY }}
+          BUNNY_PULLZONE_ID: ${{ secrets.BUNNY_PULLZONE_ID }}
+        run: |
+          if [ -z "$BUNNY_API_KEY" ] || [ -z "$BUNNY_PULLZONE_ID" ]; then
+            echo "::warning::BUNNY_API_KEY/BUNNY_PULLZONE_ID niet gezet — bunny-cache niet gepurged"
+            exit 0
+          fi
+          if curl -sf -X POST "https://api.bunny.net/pullzone/${BUNNY_PULLZONE_ID}/purgeCache" \
+               -H "AccessKey: ${BUNNY_API_KEY}" -H "Content-Length: 0"; then
+            echo "bunny-cache gepurged"
+          else
+            echo "::warning::bunny-purge mislukt — cache verloopt volgens TTL"
+          fi
