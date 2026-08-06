@@ -1,5 +1,6 @@
 import { getFavorites, setFavorites, normalizeTeam, applyFavoriteHighlights, STORAGE_KEY } from "./favorites.js";
 import { getBetaFeatures, setBetaFeatures } from "./beta.js";
+import { initTvCheckboxes } from "./espn.js";
 
 const _settingsDocs = new Set();
 let _storageListenerRegistered = false;
@@ -70,6 +71,7 @@ export function init(doc) {
   // Sync checkboxes from current favorites on load
   syncCheckboxes(doc, getFavorites());
   initBetaCheckboxes(doc);
+  initTvCheckboxes(doc);
 
   const saveBtn = doc.getElementById("favorites-save");
   const clearBtn = doc.getElementById("favorites-clear");

@@ -9,6 +9,7 @@ from honkbal.fetch.espn_postseason import fetch_postseason
 from honkbal.fetch.playoff_odds import fetch_playoff_odds
 from honkbal.fetch.schedule import fetch_schedule
 from honkbal.fetch.standings import fetch_standings
+from honkbal.fetch.tv_guide import fetch_tv_guide
 from honkbal.season import ConfigError, select_active_season
 
 
@@ -51,6 +52,18 @@ def cmd_fetch(args, *, clock: Clock) -> int:
             )
     else:
         print("[info] postseason — standings/playoff-odds-fetch voor enrichment overgeslagen")
+
+    # Tv-gids loopt bewust dóór de postseason heen (uitzendingen gaan door), anders dan de
+    # pre-ps-gate van standings/odds.
+    if season.windows.showfrom <= clock.now() < season.windows.einde:
+        tv = fetch_tv_guide(clock, data_dir=data_dir)
+        if not tv.ok:
+            print(
+                "[waarschuwing] tv-gids-fetch mislukt; bestaande cache behouden",
+                file=sys.stderr,
+            )
+    else:
+        print("[info] buiten seizoensvenster — tv-gids-fetch overgeslagen")
 
     if clock.now() >= season.windows.ps:
         ps = fetch_postseason(clock, data_dir=data_dir)

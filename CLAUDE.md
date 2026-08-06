@@ -10,10 +10,10 @@ Honkbal.net is een Python/uv static-site generator die MLB-wedstrijden in Nederl
 
 ### Build-time pipeline
 
-1. **Fetch** (`uv run honkbal fetch`): haalt de MLB-ticketingfeed op per team-ID (mapping in `honkbal/config/feeds.py`); schrijft gecachte JSON naar `.data/`. Vóór `season.windows.ps` ook MLB-StatsAPI-standen (`fetch/standings.py` → `.data/standings.json`, voor enrichment, faalt zacht). Na `season.windows.ps` ook ESPN-postseason-API.
+1. **Fetch** (`uv run honkbal fetch`): haalt de MLB-ticketingfeed op per team-ID (mapping in `honkbal/config/feeds.py`); schrijft gecachte JSON naar `.data/`. Vóór `season.windows.ps` ook MLB-StatsAPI-standen (`fetch/standings.py` → `.data/standings.json`, voor enrichment, faalt zacht). Na `season.windows.ps` ook ESPN-postseason-API. Binnen `showfrom..einde` (dus óók in de postseason) de tv-gids (`fetch/tv_guide.py` → `.data/tv_guide.json`, SPEC §3.3: ESPN watch-GraphQL-API primair, tvgids.nl-JSON fallback, faalt zacht).
 2. **Parse**: `honkbal/parse/schedule.py` zet CSV om naar een lijst van getypte `Game`-objecten (NY→Amsterdam tijdzone-conversie; TBD-afhandeling; allowlist; dedup); `honkbal/parse/espn_postseason.py` levert `PostseasonData`.
 3. **Enrich** (alleen reguliere seizoen): `honkbal/enrichment.py::enrich_games` kent elke wedstrijd een regelgebaseerde interessantheidsscore toe (`Enrichment{score,label,reasons,percentile}`) op basis van rivalry (`config/rivalries.py`), divisie/league (`config/teams.py`), standen (`.data/standings.json`) en optionele playoff-odds (`.data/playoff_odds.json`); daarna krijgt elke gescoorde game een percentiel binnen de build (basis voor het interessefilter). Labels bestaan pas vanaf score ≥ 18. Postseason wordt overgeslagen (`clock.now() >= season.windows.ps`). Zie SPEC §11.
-4. **Render** (`uv run honkbal render`): `honkbal/render/pages.py` filtert eerst op `start > nu − LIVE_GRACE_HOURS` (getimede games blijven 4u na start zichtbaar — vermoedelijk nog bezig; TBD datum-granulair, SPEC §3.2), bouwt Jinja2-context via `render/context.py` en rendert alle pagina's naar `docs/` met autoescape aan. De avond/index-pagina krijgt op `#live-container` een `data-live-windows`-attribuut (starttijden als epoch-seconden, 5u terug tot 48u vooruit, berekend over de óngefilterde gameslijst) voor de poll-gating van de live-sectie (SPEC §6.8). De eerste 250 wedstrijden staan inline in de HTML; de rest schrijft `render/tail.py` als HTML-fragmentblokken naar `<pagina>.tail.json` (SPEC §5.9). Daarna kopieert de CLI statische assets vanuit `frontend/` naar `docs/`. `cmd_render` draait stap 3 (enrich) vlak vóór het bouwen van de context; `enrichment_*` zit op `RowContext`; het **percentiel** wordt als `data-interest`-attribuut op schema-rijen gerenderd (interessefilter, SPEC §6.9) en getimede rijen dragen `data-start` (epoch-seconden, voor de doubleheader-dedup van de live-sectie én de client-side veroudering) en elk dagblok `<tbody data-date="YYYY-MM-DD">` (veroudering van TBD-rijen, SPEC §6.10); label/reasons worden nog niet getoond.
+4. **Render** (`uv run honkbal render`): `honkbal/render/pages.py` filtert eerst op `start > nu − LIVE_GRACE_HOURS` (getimede games blijven 4u na start zichtbaar — vermoedelijk nog bezig; TBD datum-granulair, SPEC §3.2), koppelt tv-gids-airings aan de gefilterde games (`honkbal/tv_guide.py::build_tv_lookup`, SPEC §3.3: teampass ±75 min, daarna teamloze tijdpass alleen bij precies één kandidaat; gematchte rijen krijgen een `div.espn` met zenderlogo + evt. NL-badge via `render/logos.py::channel_logo_html`), bouwt Jinja2-context via `render/context.py` en rendert alle pagina's naar `docs/` met autoescape aan. De avond/index-pagina krijgt op `#live-container` een `data-live-windows`-attribuut (starttijden als epoch-seconden, 5u terug tot 48u vooruit, berekend over de óngefilterde gameslijst) voor de poll-gating van de live-sectie (SPEC §6.8). De eerste 250 wedstrijden staan inline in de HTML; de rest schrijft `render/tail.py` als HTML-fragmentblokken naar `<pagina>.tail.json` (SPEC §5.9). Daarna kopieert de CLI statische assets vanuit `frontend/` naar `docs/`. `cmd_render` draait stap 3 (enrich) vlak vóór het bouwen van de context; `enrichment_*` zit op `RowContext`; het **percentiel** wordt als `data-interest`-attribuut op schema-rijen gerenderd (interessefilter, SPEC §6.9) en getimede rijen dragen `data-start` (epoch-seconden, voor de doubleheader-dedup van de live-sectie én de client-side veroudering) en elk dagblok `<tbody data-date="YYYY-MM-DD">` (veroudering van TBD-rijen, SPEC §6.10); label/reasons worden nog niet getoond.
 5. **Config-validatie**: `honkbal/season.py` valideert het actieve seizoensblok (Pydantic + `@model_validator`). Een ongeldige datum of ontbrekend verplicht veld → `ConfigError` → de build faalt **luid vóór publicatie**.
 6. **`version.txt`**: in CI geschreven door de workflow (`${GITHUB_SHA::12}-${GITHUB_RUN_NUMBER}`); bij lokale builds valt de CLI terug op de mtime van `style.css`. Niet handmatig committen.
 
@@ -25,6 +25,7 @@ Logica-modules (geïmporteerd; exporteren `init`/functies, doen zelf geen self-i
 - `frontend/js/live.js`: "nu bezig"-sectie op de avond-tab (SPEC §6.8, staat voor iedereen aan — geen bèta meer): live wedstrijden + scores via MLB Stats API (2-daags NY-venster), verbergt dubbele statische schema-rijen, hernoemt de avond-tab client-side naar "nu + avond"; geen localStorage-cache. Pollt alleen binnen build-time meegegeven poll-vensters (`data-live-windows`, starttijd + 5u per game); daarbuiten geen API-calls.
 - `frontend/js/interest.js`: interessefilter-slider op schemapagina's (SPEC §6.9, bètafeature `interest`): verbergt rijen met een `data-interest`-percentiel onder de gekozen drempel (class `interest-hidden`); rijen zonder attribuut (postseason/all-star) blijven altijd zichtbaar en zonder gescoorde rijen komt er geen slider.
 - `frontend/js/stale.js`: laat het statische schema client-side verouderen (SPEC §6.10, staat voor iedereen aan): past het build-time filter van SPEC §3.2 opnieuw toe in de browser — getimede rijen op `data-start` (`nu >= start + 4u`), TBD-rijen op de `data-date` van hun `<tbody>` — en verbergt verouderde rijen met class `stale-hidden`. Nodig omdat de build-cadans een gat van 9 uur heeft (01:00 → 10:00): zonder dit staan de wedstrijden van gisteravond er 's ochtends nog.
+- `frontend/js/espn.js`: tv-gids-instellingen (SPEC §6.11, staat voor iedereen aan): zet body-klassen `espn-off`/`espn-nl-only` op basis van `localStorage`-keys `honkbal-espn-logos` (afwezig/`"1"` = aan) en `honkbal-espn-nl-only` (afwezig/`"0"` = uit); checkboxes op de instellingenpagina (`name="tv"`, direct opgeslagen); cross-tab via `storage`-events. Body-klassen i.p.v. per-rij JS, dus tail-rijen doen automatisch mee.
 - `frontend/js/beta.js`: bètafeature-opslag (`honkbal-beta-features` in `localStorage`, SPEC §6.9); checkboxes op de instellingenpagina (`name="beta"`, direct opgeslagen).
 - `frontend/js/standings.js`: standen via MLB Stats API met seizoenjaar dat server-side in de HTML is ingebakken.
 - `frontend/js/loadmore.js`: haalt `<pagina>.tail.json` op (network-first) en plakt extra wedstrijdrijen aan de pagina.
@@ -34,7 +35,7 @@ Logica-modules (geïmporteerd; exporteren `init`/functies, doen zelf geen self-i
 
 Entry-modules (extern geladen via `<script type="module">`, **geen inline blob** — SPEC §6.1; self-init op `DOMContentLoaded`):
 
-- `scores-entry.js`, `standings-entry.js`, `settings-entry.js`, `live-entry.js`, `interest-entry.js`, `stale-entry.js`: importeren `init` uit de bijbehorende logica-module en starten die op (`live-entry.js` alleen op pagina's met `page == 'avond'`, incl. `index.html`; `interest-entry.js` alleen als de bètafeature `interest` aanstaat, SPEC §6.9; `stale-entry.js` op elke schemapagina, incl. team-pagina's).
+- `scores-entry.js`, `standings-entry.js`, `settings-entry.js`, `live-entry.js`, `interest-entry.js`, `stale-entry.js`, `espn-entry.js`: importeren `init` uit de bijbehorende logica-module en starten die op (`live-entry.js` alleen op pagina's met `page == 'avond'`, incl. `index.html`; `interest-entry.js` alleen als de bètafeature `interest` aanstaat, SPEC §6.9; `stale-entry.js` en `espn-entry.js` op elke schemapagina, incl. team-pagina's).
 - `favorites-init.js`: past favoriet-highlights toe en luistert op cross-tab `storage`-events.
 - `register-sw.js`: registreert `/sw.js` (scope `/`, `updateViaCache: "none"`) — vervangt de oude inline registratie (SPEC §6.5).
 
@@ -86,6 +87,7 @@ honkbal/
   season.py                    # select_active_season, load_windows, ConfigError (Pydantic-validatie)
   models.py                    # Game, ScheduleMeta, PostseasonGame, PostseasonData, Enrichment
   enrichment.py                # enrich_games/score_game: regelgebaseerde interessantheid (SPEC §11)
+  tv_guide.py                  # TvAiring, load_tv_guide, build_tv_lookup: tv-gids-matching (SPEC §3.3)
   config/
     seasons.py                 # RAW_SEASONS: seizoensblokken per jaar
     feeds.py                   # TEAM_FEEDS: team_id <-> team mapping (30 MLB-teams + all-star)
@@ -97,6 +99,7 @@ honkbal/
     schedule.py                # MLB ticketing-CSV ophalen per team-feed
     standings.py               # MLB-StatsAPI-standen -> .data/standings.json (enrichment-signaal)
     playoff_odds.py            # genormaliseerde playoff-odds lezen uit .data/playoff_odds.json (bron-adapter: zie SPEC §11.4)
+    tv_guide.py                # ESPN watch-API + tvgids.nl -> .data/tv_guide.json (tv-gids, SPEC §3.3)
     espn_postseason.py         # ESPN-API ophalen -> cache in .data/
     discover_feeds.py          # Eenmalig diagnostisch: range 105..161 -> team_id-mapping
     http.py                    # httpx-client met throttle (geen retry; drempel + last-known-good vangt fouten)
@@ -122,13 +125,15 @@ frontend/
     style.css                  # custom CSS
     bootstrap-grid.min.css     # grid-hulp
   js/
-    favorites.js  scores.js  standings.js  settings.js  loadmore.js  nav.js  live.js  interest.js  beta.js  stale.js  sw.js
-    favorites-init.js  scores-entry.js  standings-entry.js  settings-entry.js  live-entry.js  interest-entry.js  stale-entry.js  # entry-modules (self-init)
+    favorites.js  scores.js  standings.js  settings.js  loadmore.js  nav.js  live.js  interest.js  beta.js  stale.js  espn.js  sw.js
+    favorites-init.js  scores-entry.js  standings-entry.js  settings-entry.js  live-entry.js  interest-entry.js  stale-entry.js  espn-entry.js  # entry-modules (self-init)
     register-sw.js                                                             # SW-registratie (geen inline blob)
     util/  diamond.js  dom.js  logo.js  teams.js  time.js
   static/
     favicon.ico  icon.png  manifest.json  404.html
-    img/                       # team-logo's (PNG)
+    img/                       # team-logo's (PNG); img/espn/ = zenderlogo's tv-gids (licht + -dark)
+  tools/
+    discover-espn-watch.mjs    # zelfherstel ESPN watch-apiKey (Playwright, npm run discover:espn)
 tests/
   conftest.py                  # FrozenClock-fixture
   fixtures/                    # vastgepinde CSV + ESPN-JSON-snapshots
@@ -148,7 +153,7 @@ frontend/e2e/                  # Playwright (DOM, offline, SW)
 ### `build.yml` — volledig (cron + `workflow_dispatch`)
 
 1. **gate-job** (lichte deploy-gate): `uv sync --frozen` -> `ruff check` -> `pytest -q`. Geen node:test/Playwright — die draaien op push/PR in `ci.yml`; een cron-deploy gebruikt dezelfde commit met alleen verse data, en de render-stap valideert config en faalt luid. Blokkeert de build-job.
-2. **build-job**: data-cache herstellen -> `honkbal fetch` -> `version.txt` schrijven -> `honkbal render` -> data-cache opslaan -> publicatie-artifact.
+2. **build-job**: data-cache herstellen -> zelfherstel ESPN watch-apiKey (alleen als de vorige fetch niet op bron `espn` draaide: `npm run discover:espn`, faalt zacht) -> `honkbal fetch` -> `version.txt` schrijven -> `honkbal render` -> data-cache opslaan -> publicatie-artifact.
 
 ### `rebuild.yml` — geen fetch (handmatig)
 
@@ -217,6 +222,8 @@ Controleer daarna: default-tab op de frontpage, datumkoppen in `debug.html`, out
 
 Controleer ook (enrichment): `honkbal/config/teams.py::TEAM_DIVISIONS` bij divisiewijzigingen en `honkbal/config/rivalries.py` voor nieuwe/vervallen rivalries. Hervalideer de FanGraphs-odds-veldnamen (SPEC §11.4) als de odds-adapter actief is.
 
+Controleer ook (tv-gids, SPEC §3.3): de ESPN watch-apiKey herstelt zichzelf (`build.yml` draait `npm run discover:espn` zodra de vorige fetch niet meer op bron `espn` draaide; `frontend/tools/discover-espn-watch.mjs` kijkt de key headless af en schrijft `.data/espn_watch_config.json`, dat voorrang krijgt op de fallback-constante `ESPN_WATCH_API_KEY`). Controleer alleen nog de tvgids.nl-kanaal-id's (`_TVGIDS_CHANNELS`) — en de discovery zelf — zodra de fetch structureel op de fallback of op niets draait.
+
 ## Bekende valkuilen
 
 - **Kale `datetime.now()` in domeincode is verboden.** Gebruik altijd `clock.now()` — anders zijn tests niet deterministisch en is `--now` zinloos.
@@ -232,6 +239,7 @@ Controleer ook (enrichment): `honkbal/config/teams.py::TEAM_DIVISIONS` bij divis
 - **`next_year` wordt legacy berekend** (voor de rollover, SPEC §4.3) — bewuste eigenaarsbeslissing, geen bug.
 - **Enrichment faalt nooit de build.** Standings-fetch (`fetch/standings.py`) en odds-load (`fetch/playoff_odds.py`) falen zacht: ontbreken ze, dan dragen alleen de overige signalen bij en blijft `enrichment` evt. `None`. Enrichment draait **alleen vóór `season.windows.ps`**; in de postseason wordt het overgeslagen.
 - **`config/rivalries.py` + `TEAM_DIVISIONS` zijn handmatig.** Divisie-indeling en rivalry-tiers staan hardcoded; controleer ze jaarlijks (her-/promotie-divisies, nieuwe rivalries) — zie "Jaarlijks onderhoud".
+- **Tv-gids faalt nooit de build.** `fetch/tv_guide.py` faalt zacht (ESPN-API primair, tvgids.nl fallback, anders bestaande `.data/tv_guide.json` behouden); zonder bruikbare cache rendert het schema zonder zenderlogo's. De `apiKey` is een publieke espn.nl-paginaconstante — géén secret; bij rotatie herstelt CI hem zelf (`npm run discover:espn`, zie "Jaarlijks onderhoud"). Er is bewust géén categoryId: de adapter filtert client-side op subcategory/league == MLB. ESPN Extra is bewust uitgesloten. Alleen-tvgids betekent minder matches (meestal geen teamnamen, geen NL-badges).
 - **Playoff-odds-bron is nog niet bekabeld.** `load_playoff_odds` leest alleen `.data/playoff_odds.json` (genormaliseerd). Zolang geen adapter dat bestand schrijft, draagt het odds-signaal niets bij — enrichment werkt dan op rivalry/divisie/standen. FanGraphs-scrape-ontwerp: zie SPEC §11.4 en "Playoff-odds scrapen" hieronder.
 
 ## Wat je niet moet committen

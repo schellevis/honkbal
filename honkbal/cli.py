@@ -86,12 +86,14 @@ def cmd_render(args, *, clock: Clock | None = None) -> int:
     from honkbal.fetch.standings import load_standings  # noqa: PLC0415
     from honkbal.parse.schedule import load_games  # noqa: PLC0415
     from honkbal.render.pages import render_site  # noqa: PLC0415
+    from honkbal.tv_guide import load_tv_guide  # noqa: PLC0415
 
     loaded = load_games(data_dir, clock=clock)
     games, meta = loaded if loaded else ([], None)
     postseason = load_postseason(data_dir)
     standings = load_standings(data_dir)
     playoff_odds = load_playoff_odds(data_dir)
+    tv_airings = load_tv_guide(data_dir)
     games = enrich_games(
         games,
         season=season,
@@ -110,6 +112,7 @@ def cmd_render(args, *, clock: Clock | None = None) -> int:
         season=season,
         asset_version=asset_ver,
         clock=clock,
+        tv_airings=tv_airings,
     )
     _copy_static_assets(out, asset_version=asset_ver)
     print(f"[ok] render → {out} (asset_version={asset_ver}, games={len(games)})")

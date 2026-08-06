@@ -5,7 +5,8 @@
   "scripts": {
     "test:unit": "node --test frontend/test/*.test.js",
     "test:e2e": "playwright test",
-    "test": "npm run test:unit && npm run test:e2e"
+    "test": "npm run test:unit && npm run test:e2e",
+    "discover:espn": "node frontend/tools/discover-espn-watch.mjs"
   },
   "devDependencies": {
     "@playwright/test": "^1.48"

@@ -65,6 +65,20 @@ jobs:
             echo "data-cache hersteld via ${{ steps.datacache.outputs.cache-matched-key }}"
           fi
 
+      # Zelfherstel (SPEC §3.3): de ESPN watch-apiKey is een publieke paginaconstante die kan
+      # roteren. Draaide de vorige fetch niet (meer) op bron "espn", kijk de key dan headless
+      # opnieuw af en cache hem in .data/espn_watch_config.json. Faalt zacht: zonder verse key
+      # gebruikt de fetch de ingebouwde fallback-constante en anders tvgids.nl.
+      - name: Zelfherstel ESPN watch-apiKey (alleen indien nodig)
+        run: |
+          if [ ! -f .data/tv_guide.json ] || [ "$(jq -r '.source // empty' .data/tv_guide.json)" != "espn" ]; then
+            npm ci
+            npx playwright install --with-deps chromium
+            npm run discover:espn || echo "::warning::apiKey-discovery mislukt; fetch gebruikt fallback-key of tvgids.nl"
+          else
+            echo "tv-gids draaide op ESPN — discovery overgeslagen"
+          fi
+
       - name: Fetch data (schedule altijd; ESPN-postseason als now>=ps)
         run: uv run honkbal fetch --data-dir .data
 

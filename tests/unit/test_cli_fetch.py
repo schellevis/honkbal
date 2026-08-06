@@ -18,7 +18,7 @@ def test_fetch_skipped_via_env_is_noop_ok(tmp_path, monkeypatch):
 
 
 def test_postseason_only_fetched_when_now_ge_ps(tmp_path, monkeypatch):
-    calls = {"schedule": 0, "standings": 0, "odds": 0, "postseason": 0}
+    calls = {"schedule": 0, "standings": 0, "odds": 0, "postseason": 0, "tv": 0}
 
     def fake_schedule(clock, *, data_dir):
         calls["schedule"] += 1
@@ -52,20 +52,34 @@ def test_postseason_only_fetched_when_now_ge_ps(tmp_path, monkeypatch):
 
         return R()
 
+    def fake_tv(clock, *, data_dir):
+        calls["tv"] += 1
+
+        class R:
+            ok, count, source = True, 4, "espn"
+
+        return R()
+
     monkeypatch.setattr("honkbal.cli_fetch.fetch_schedule", fake_schedule)
     monkeypatch.setattr("honkbal.cli_fetch.fetch_postseason", fake_postseason)
     monkeypatch.setattr("honkbal.cli_fetch.fetch_standings", fake_standings)
     monkeypatch.setattr("honkbal.cli_fetch.fetch_playoff_odds", fake_odds)
+    monkeypatch.setattr("honkbal.cli_fetch.fetch_tv_guide", fake_tv)
 
-    # midseason (juni 2026, vóór ps 01-10) → géén postseason
+    # midseason (juni 2026, vóór ps 01-10) → géén postseason, wél tv-gids
     clock = FrozenClock(datetime(2026, 6, 21, 12, 0, tzinfo=AMSTERDAM))
     assert cli_fetch.cmd_fetch(_Args(tmp_path), clock=clock) == 0
-    assert calls == {"schedule": 1, "standings": 1, "odds": 1, "postseason": 0}
+    assert calls == {"schedule": 1, "standings": 1, "odds": 1, "postseason": 0, "tv": 1}
 
-    # postseason (oktober 2026, na ps) → óók postseason
+    # postseason (oktober 2026, na ps) → óók postseason; tv-gids loopt door (vóór einde)
     clock = FrozenClock(datetime(2026, 10, 5, 12, 0, tzinfo=AMSTERDAM))
     assert cli_fetch.cmd_fetch(_Args(tmp_path), clock=clock) == 0
-    assert calls == {"schedule": 2, "standings": 1, "odds": 1, "postseason": 1}
+    assert calls == {"schedule": 2, "standings": 1, "odds": 1, "postseason": 1, "tv": 2}
+
+    # vóór showfrom (maart 2026) → tv-gids overgeslagen
+    clock = FrozenClock(datetime(2026, 3, 20, 12, 0, tzinfo=AMSTERDAM))
+    assert cli_fetch.cmd_fetch(_Args(tmp_path), clock=clock) == 0
+    assert calls["tv"] == 2
 
 
 def test_partial_fetch_keeps_last_known_good(tmp_path, monkeypatch):
@@ -88,9 +102,16 @@ def test_partial_fetch_keeps_last_known_good(tmp_path, monkeypatch):
 
         return R()
 
+    def failing_tv(clock, *, data_dir):
+        class R:
+            ok, count, source = False, 0, None
+
+        return R()
+
     monkeypatch.setattr("honkbal.cli_fetch.fetch_schedule", failing_schedule)
     monkeypatch.setattr("honkbal.cli_fetch.fetch_standings", failing_standings)
     monkeypatch.setattr("honkbal.cli_fetch.fetch_playoff_odds", failing_odds)
+    monkeypatch.setattr("honkbal.cli_fetch.fetch_tv_guide", failing_tv)
     clock = FrozenClock(datetime(2026, 6, 21, 12, 0, tzinfo=AMSTERDAM))
     # cmd_fetch logt de degradatie maar faalt de build NIET (SPEC §9/§12.12)
     assert cli_fetch.cmd_fetch(_Args(tmp_path), clock=clock) == 0
