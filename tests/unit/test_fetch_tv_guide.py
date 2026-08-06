@@ -91,10 +91,10 @@ def test_fetch_tv_guide_writes_espn_cache(tmp_path):
 
     def handler(req):
         assert req.url.host == "watch.graph.api.espn.com"
+        assert req.url.params["apiKey"] == "0dbf88e8-cc6d-41da-aa83-18b5c630bc5c"
         variables = json.loads(req.url.params["variables"])
         assert variables["countryCode"] == "NL"
         assert variables["tz"] == "UTC+0200"
-        assert variables["categories"] == ["b38f959b-7865-31ac-8841-b88355519e10"]
         days.append(variables["day"])
         if variables["day"] == "2026-08-06":
             return httpx.Response(200, json=payload)
@@ -109,7 +109,8 @@ def test_fetch_tv_guide_writes_espn_cache(tmp_path):
     assert cache["source"] == "espn"
 
     airings = cache["airings"]
-    # a4 ("MLB Quick Pitch") is een magazineprogramma en valt weg.
+    # a4 ("MLB Quick Pitch") is een magazineprogramma, a5 zit op ESPN Extra (bewust weggelaten)
+    # en a6 ("Eredivisie: Ajax vs PSV") is geen MLB: alle drie vallen weg.
     assert [a["title"] for a in airings] == [
         "MLB: Cubs vs Dodgers",
         "MLB: Cubs vs Dodgers",
@@ -124,7 +125,7 @@ def test_fetch_tv_guide_writes_espn_cache(tmp_path):
     assert game["nl_commentary"] is False
     assert game["live"] is True
 
-    assert replay["channel"] == "espn_extra"
+    assert replay["channel"] == "espn3"
     assert replay["live"] is False
 
     assert nl_game["channel"] == "espn2"
@@ -156,6 +157,36 @@ def test_fetch_tv_guide_uses_each_days_dst_offset(tmp_path):
         ("2026-03-30", "UTC+0200"),
         ("2026-03-31", "UTC+0200"),
     ]
+
+
+def test_fetch_tv_guide_prefers_discovered_api_key(tmp_path):
+    (tmp_path / "espn_watch_config.json").write_text(
+        json.dumps({"apiKey": "sleutel-uit-config"})
+    )
+    keys = []
+
+    def handler(req):
+        keys.append(req.url.params["apiKey"])
+        return httpx.Response(200, json=EMPTY_ESPN)
+
+    result = _fetch(tmp_path, handler)
+
+    assert result.ok is True
+    assert set(keys) == {"sleutel-uit-config"}
+
+
+def test_fetch_tv_guide_ignores_corrupt_api_key_config(tmp_path):
+    (tmp_path / "espn_watch_config.json").write_text("{kapot")
+    keys = []
+
+    def handler(req):
+        keys.append(req.url.params["apiKey"])
+        return httpx.Response(200, json=EMPTY_ESPN)
+
+    result = _fetch(tmp_path, handler)
+
+    assert result.ok is True
+    assert set(keys) == {"0dbf88e8-cc6d-41da-aa83-18b5c630bc5c"}
 
 
 def test_fetch_tv_guide_falls_back_to_tvgids(tmp_path):

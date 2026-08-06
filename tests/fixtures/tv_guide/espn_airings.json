@@ -9,7 +9,8 @@
         "endDateTime": "2026-08-06T03:40:00Z",
         "feedName": null,
         "network": {"abbreviation": "nl_espn4", "name": "ESPN4"},
-        "subcategory": {"name": "MLB"}
+        "subcategory": {"name": "MLB"},
+        "league": {"name": "MLB"}
       },
       {
         "id": "a2",
@@ -19,7 +20,8 @@
         "endDateTime": null,
         "feedName": "NL",
         "network": {"abbreviation": "nl_espn2", "name": "ESPN2"},
-        "subcategory": {"name": "MLB"}
+        "subcategory": {"name": "MLB"},
+        "league": {"name": "MLB"}
       },
       {
         "id": "a3",
@@ -28,8 +30,9 @@
         "startDateTime": "2026-08-06T09:00:00Z",
         "endDateTime": null,
         "feedName": null,
-        "network": {"abbreviation": "nl_espn_extra", "name": "ESPN Extra"},
-        "subcategory": {"name": "MLB"}
+        "network": {"abbreviation": "nl_espn3", "name": "ESPN3"},
+        "subcategory": {"name": "MLB"},
+        "league": {"name": "MLB"}
       },
       {
         "id": "a4",
@@ -39,7 +42,30 @@
         "endDateTime": null,
         "feedName": null,
         "network": {"abbreviation": "nl_espn3", "name": "ESPN3"},
-        "subcategory": {"name": "MLB"}
+        "subcategory": {"name": "MLB"},
+        "league": {"name": "MLB"}
+      },
+      {
+        "id": "a5",
+        "name": "MLB: Mariners vs Rangers",
+        "type": "UPCOMING",
+        "startDateTime": "2026-08-06T20:05:00Z",
+        "endDateTime": null,
+        "feedName": null,
+        "network": {"abbreviation": "nl_espn_extra", "name": "ESPN Extra"},
+        "subcategory": {"name": "MLB"},
+        "league": {"name": "MLB"}
+      },
+      {
+        "id": "a6",
+        "name": "Eredivisie: Ajax vs PSV",
+        "type": "UPCOMING",
+        "startDateTime": "2026-08-06T18:00:00Z",
+        "endDateTime": null,
+        "feedName": null,
+        "network": {"abbreviation": "nl_espn2", "name": "ESPN2"},
+        "subcategory": {"name": "Voetbal"},
+        "league": {"name": "Eredivisie"}
       }
     ]
   }

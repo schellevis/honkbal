@@ -20,7 +20,7 @@ from honkbal.config.teams import normalize_team
 from honkbal.config.toggles import TV_MATCH_TOLERANCE_MIN
 from honkbal.models import Game
 
-CHANNELS = frozenset({"espn", "espn2", "espn3", "espn4", "espn_extra"})
+CHANNELS = frozenset({"espn", "espn2", "espn3", "espn4"})
 
 
 class TvAiring(BaseModel):

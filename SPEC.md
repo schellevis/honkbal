@@ -194,19 +194,27 @@ bepaalt welke rij van een paar behouden blijft (laagste seq eerst).
   `modified = refreshed` (fetch-moment).
 
 ### 3.3 ESPN-tv-uitzendgids [REVIVED — nieuwe bronnen]
-**Doel:** bij wedstrijden die ESPN Nederland uitzendt het zenderlogo (espn/espn2/espn3/espn4/
-espn_extra) in de schemarij tonen, met een "NL"-badge bij Nederlands commentaar. De legacy-
-implementatie (espn.nl-HTML-scrape) is vervallen; dit is de herbouw op JSON-bronnen.
+**Doel:** bij wedstrijden die ESPN Nederland uitzendt het zenderlogo (espn/espn2/espn3/espn4)
+in de schemarij tonen, met een "NL"-badge bij Nederlands commentaar. ESPN Extra is **bewust
+uitgesloten** (eigenaarsbeslissing): airings op `nl_espn_extra` worden in de adapter gedropt.
+De legacy-implementatie (espn.nl-HTML-scrape) is vervallen; dit is de herbouw op JSON-bronnen.
 
 **Bronketen (adapter `fetch/tv_guide.py`, patroon = playoff-odds §11.4):**
 - Primair: ESPN watch-GraphQL-API (`watch.graph.api.espn.com/api`), één GET per dag over
   `tv_guide_days` dagen (vandaag t/m +3), variabelen `countryCode=NL`, `type=UPCOMING`,
-  MLB-categoryId, `day` + `tz` in Amsterdam-lokale tijd (DST-afhankelijk afgeleid). `apiKey` en
-  `categoryId` zijn publieke client-side constanten uit de espn.nl-paginabundel (geen secrets;
-  jaarlijks-onderhouditem, live gevalideerd 2026-08-05). ESPN telt pas als mislukt wanneer
-  **alle** dagcalls falen — een dag zonder MLB-uitzendingen is legitiem.
+  `day` + `tz` in Amsterdam-lokale tijd (DST-afhankelijk afgeleid). Er is géén
+  categoryId-filter in de query: de adapter filtert client-side op `subcategory`/`league`
+  == "MLB", zodat er geen categorie-constante te onderhouden valt. ESPN telt pas als mislukt
+  wanneer **alle** dagcalls falen — een dag zonder MLB-uitzendingen is legitiem.
+- **apiKey-zelfherstel:** de `apiKey` is een publieke client-side constante uit de
+  espn.nl-paginabundel (geen secret; live gevalideerd 2026-08-05) die kan roteren. De fetch
+  geeft voorrang aan `.data/espn_watch_config.json`; dat bestand wordt geschreven door
+  `npm run discover:espn` (`frontend/tools/discover-espn-watch.mjs`): Playwright laadt de
+  speelkalender headless (de pagina zelf zit achter botmitigatie), kijkt het API-request af
+  en valideert de key vóór het wegschrijven. `build.yml` draait dit automatisch wanneer de
+  vorige fetch niet (meer) op bron `espn` draaide; de constante in de code is de fallback.
 - Fallback: tvgids.nl-JSON (`json.tvgids.nl/v4/programs/?day=0..3&channels=148,468,469,470`;
-  148=ESPN1, 468=ESPN2, 469=ESPN3, 470=ESPN4 — géén ESPN Extra). Beide payloadvormen (dict per
+  148=ESPN1, 468=ESPN2, 469=ESPN3, 470=ESPN4). Beide payloadvormen (dict per
   kanaal-id en lijst met `ch_id`) worden geaccepteerd. Alleen titels die op een wedstrijd wijzen
   tellen mee (teamscheider "X vs Y"/"X - Y", postseason-/all-star-aanduiding of de generieke
   titel "Major League Baseball"); magazineprogramma's ("MLB Quick Pitch") vallen af.
@@ -241,7 +249,7 @@ match → geen div. Client-side zichtbaarheidsinstellingen: §6.11.
 
 ### 3.4 tvgids.nl [REVIVED als fallback]
 In legacy dode code; in v2 uitsluitend de fallback-bron binnen §3.3 (zelfde genormaliseerde
-output; geen `nl_commentary`-detectiebron en geen ESPN Extra).
+output; geen `nl_commentary`-detectiebron).
 
 ### 3.5 ESPN-API postseason-verrijking [FIX — heractivatie]
 **Doel:** postseason-rijen verrijken met ronde-label (bv. "ALCS Game 1\*") en serie-stand (bv.
@@ -686,7 +694,8 @@ De zenderlogo's (§3.3) staan voor iedereen aan; twee gewone instellingen (geen 
 - **MLB Stats API onbereikbaar (client):** scores/standen tonen cache + offline-melding.
 - **Tv-gids-bronnen onbereikbaar:** bestaande `tv_guide.json` blijft (soft-fail §3.3); zonder
   bruikbare cache rendert het schema zonder zenderlogo's. Alleen tvgids.nl beschikbaar → minder
-  matches (geen teamnamen op de meeste dagen, geen ESPN Extra, geen NL-badges).
+  matches (geen teamnamen op de meeste dagen, geen NL-badges); de eerstvolgende build probeert
+  dan automatisch een verse apiKey af te kijken (§3.3, zelfherstel).
 - **Tail-JSON onbereikbaar (client):** "meer laden" meldt dat het offline niet lukt; de inline
   beginbatch blijft staan (§5.9).
 - **Geen JS (of `stale.js` niet geladen):** het schema toont de build-time selectie (§3.2); rijen
@@ -697,8 +706,9 @@ De zenderlogo's (§3.3) staan voor iedereen aan; twee gewone instellingen (geen 
 ## 10. Jaarlijks onderhoud
 Nieuw `start[YYYY]`-blok (alle verplichte datums + uitzonderingen). Config-validatie (§4.3) vangt
 ontbrekende/ongeldige velden. Controleer standaardtab, datumkoppen, `debug.html`.
-Tv-gids (§3.3): hervalideer de ESPN watch-API-constanten (`apiKey`/`categoryId`) en de
-tvgids.nl-kanaal-id's zodra de fetch structureel op de fallback of op niets draait.
+Tv-gids (§3.3): de ESPN watch-apiKey herstelt zichzelf (discovery in `build.yml`; handmatig:
+`npm run discover:espn`). Controleer alleen nog de tvgids.nl-kanaal-id's — en de discovery
+zelf — zodra de fetch structureel op de fallback of op niets draait.
 
 ---
 

@@ -16,33 +16,36 @@ from honkbal.fetch.http import Throttle, build_client
 from honkbal.fetch.standings import _FULL_NAME_TO_TEAM
 
 # ESPN watch GraphQL-API achter de espn.nl-speelkalender, live gevalideerd op 2026-08-05:
-# kale GET zonder speciale headers werkt. apiKey en categoryId (= MLB) zijn publieke
-# client-side constanten uit de espn.nl-paginabundel — geen secrets, maar ze kunnen roteren.
-# Hervalideer ze (pagina laden, netwerkverkeer bekijken) zodra de fetch structureel faalt.
+# kale GET zonder speciale headers werkt. De apiKey is een publieke client-side constante uit
+# de espn.nl-paginabundel — geen secret, maar kan roteren. De fetch geeft voorrang aan een
+# vers ontdekte key in .data/espn_watch_config.json (geschreven door
+# `npm run discover:espn`; CI draait die zelfherstellend zodra de fetch niet meer op ESPN
+# draait); deze constante is de fallback. We filteren client-side op MLB (subcategory/league)
+# zodat er geen categoryId-constante te onderhouden valt.
 ESPN_WATCH_URL = "https://watch.graph.api.espn.com/api"
 ESPN_WATCH_API_KEY = "0dbf88e8-cc6d-41da-aa83-18b5c630bc5c"
-ESPN_MLB_CATEGORY_ID = "b38f959b-7865-31ac-8841-b88355519e10"
+ESPN_WATCH_CONFIG_FILE = "espn_watch_config.json"
 _ESPN_AIRINGS_QUERY = (
     "query Airings($countryCode:String!,$deviceType:DeviceType!,$tz:String!,"
-    "$type:AiringType,$categories:[String],$day:String,$limit:Int){"
+    "$type:AiringType,$day:String,$limit:Int){"
     "airings(countryCode:$countryCode,deviceType:$deviceType,tz:$tz,"
-    "type:$type,categories:$categories,day:$day,limit:$limit){"
+    "type:$type,day:$day,limit:$limit){"
     "id name type startDateTime endDateTime feedName "
-    "network{abbreviation name} subcategory{name}}}"
+    "network{abbreviation name} subcategory{name} league{name}}}"
 )
 
-# tvgids.nl JSON-API (fallback), live gevalideerd op 2026-08-05. Kanaal-id's zijn hardcoded;
-# ESPN Extra bestaat niet in tvgids. Met `channels`-param is `data` een dict per kanaal-id.
+# tvgids.nl JSON-API (fallback), live gevalideerd op 2026-08-05. Kanaal-id's zijn hardcoded.
+# Met `channels`-param is `data` een dict per kanaal-id.
 TVGIDS_PROGRAMS_URL = "https://json.tvgids.nl/v4/programs/"
 _TVGIDS_CHANNELS = {"148": "espn", "468": "espn2", "469": "espn3", "470": "espn4"}
 
+# ESPN Extra (nl_espn_extra) is bewust weggelaten: die uitzendingen tonen we niet.
 _ESPN_NETWORKS = {
     "nl_espn": "espn",
     "nl_espn1": "espn",
     "nl_espn2": "espn2",
     "nl_espn3": "espn3",
     "nl_espn4": "espn4",
-    "nl_espn_extra": "espn_extra",
 }
 
 # NL-commentaar staat op allerlei manieren in titel/feedName; een kale "nl" in de titel is
@@ -92,7 +95,9 @@ def fetch_tv_guide(
     client = client or build_client()
     throttle = throttle or Throttle(SLEEP_SECONDS, clock)
     try:
-        source, airings = _fetch_from_sources(clock, client=client, throttle=throttle)
+        source, airings = _fetch_from_sources(
+            clock, data_dir=data_dir, client=client, throttle=throttle
+        )
     except (httpx.HTTPError, ValueError, TypeError, KeyError):
         return TvGuideFetchResult(ok=False, count=0)
     finally:
@@ -138,16 +143,32 @@ def _write_cache(data_dir: Path, payload: dict[str, Any]) -> bool:
 
 
 def _fetch_from_sources(
-    clock: Clock, *, client: httpx.Client, throttle: Throttle
+    clock: Clock, *, data_dir: Path, client: httpx.Client, throttle: Throttle
 ) -> tuple[str, list[dict[str, Any]]]:
     try:
-        return "espn", _fetch_espn(clock, client=client, throttle=throttle)
+        return "espn", _fetch_espn(
+            clock, api_key=_espn_api_key(data_dir), client=client, throttle=throttle
+        )
     except (httpx.HTTPError, ValueError, TypeError, KeyError):
         pass
     return "tvgids", _fetch_tvgids(clock, client=client, throttle=throttle)
 
 
-def _fetch_espn(clock: Clock, *, client: httpx.Client, throttle: Throttle) -> list[dict[str, Any]]:
+def _espn_api_key(data_dir: Path) -> str:
+    """Vers ontdekte key uit .data/espn_watch_config.json, anders de constante fallback."""
+    try:
+        config = json.loads((data_dir / ESPN_WATCH_CONFIG_FILE).read_text(encoding="utf-8"))
+        key = config.get("apiKey") if isinstance(config, dict) else None
+        if isinstance(key, str) and key.strip():
+            return key.strip()
+    except (OSError, ValueError, TypeError):
+        pass
+    return ESPN_WATCH_API_KEY
+
+
+def _fetch_espn(
+    clock: Clock, *, api_key: str, client: httpx.Client, throttle: Throttle
+) -> list[dict[str, Any]]:
     airings: list[dict[str, Any]] = []
     ok_days = 0
     for i in range(TV_GUIDE_DAYS):
@@ -158,7 +179,7 @@ def _fetch_espn(clock: Clock, *, client: httpx.Client, throttle: Throttle) -> li
             res = client.get(
                 ESPN_WATCH_URL,
                 params={
-                    "apiKey": ESPN_WATCH_API_KEY,
+                    "apiKey": api_key,
                     "query": _ESPN_AIRINGS_QUERY,
                     "variables": json.dumps(
                         {
@@ -166,7 +187,6 @@ def _fetch_espn(clock: Clock, *, client: httpx.Client, throttle: Throttle) -> li
                             "deviceType": "DESKTOP",
                             "tz": _tz_param(day),
                             "type": "UPCOMING",
-                            "categories": [ESPN_MLB_CATEGORY_ID],
                             "day": day.date().isoformat(),
                             "limit": 1000,
                         }
@@ -193,6 +213,9 @@ def _fetch_espn(clock: Clock, *, client: httpx.Client, throttle: Throttle) -> li
 
 def _airing_from_espn(row: Any) -> dict[str, Any] | None:
     if not isinstance(row, dict):
+        return None
+    # Zonder categoryId-filter in de query komen alle ESPN-NL-airings binnen; alleen MLB telt.
+    if not _is_mlb(row):
         return None
     network = row.get("network") or {}
     if not isinstance(network, dict):
@@ -329,6 +352,14 @@ def _dedupe(airings: list[dict[str, Any]]) -> list[dict[str, Any]]:
         seen.add(key)
         unique.append(airing)
     return unique
+
+
+def _is_mlb(row: dict[str, Any]) -> bool:
+    for key in ("subcategory", "league"):
+        value = row.get(key)
+        if isinstance(value, dict) and str(value.get("name") or "").strip().lower() == "mlb":
+            return True
+    return False
 
 
 def _looks_like_game(title: str) -> bool:

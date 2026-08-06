@@ -132,6 +132,8 @@ frontend/
   static/
     favicon.ico  icon.png  manifest.json  404.html
     img/                       # team-logo's (PNG); img/espn/ = zenderlogo's tv-gids (licht + -dark)
+  tools/
+    discover-espn-watch.mjs    # zelfherstel ESPN watch-apiKey (Playwright, npm run discover:espn)
 tests/
   conftest.py                  # FrozenClock-fixture
   fixtures/                    # vastgepinde CSV + ESPN-JSON-snapshots
@@ -151,7 +153,7 @@ frontend/e2e/                  # Playwright (DOM, offline, SW)
 ### `build.yml` — volledig (cron + `workflow_dispatch`)
 
 1. **gate-job** (lichte deploy-gate): `uv sync --frozen` -> `ruff check` -> `pytest -q`. Geen node:test/Playwright — die draaien op push/PR in `ci.yml`; een cron-deploy gebruikt dezelfde commit met alleen verse data, en de render-stap valideert config en faalt luid. Blokkeert de build-job.
-2. **build-job**: data-cache herstellen -> `honkbal fetch` -> `version.txt` schrijven -> `honkbal render` -> data-cache opslaan -> publicatie-artifact.
+2. **build-job**: data-cache herstellen -> zelfherstel ESPN watch-apiKey (alleen als de vorige fetch niet op bron `espn` draaide: `npm run discover:espn`, faalt zacht) -> `honkbal fetch` -> `version.txt` schrijven -> `honkbal render` -> data-cache opslaan -> publicatie-artifact.
 
 ### `rebuild.yml` — geen fetch (handmatig)
 
@@ -220,7 +222,7 @@ Controleer daarna: default-tab op de frontpage, datumkoppen in `debug.html`, out
 
 Controleer ook (enrichment): `honkbal/config/teams.py::TEAM_DIVISIONS` bij divisiewijzigingen en `honkbal/config/rivalries.py` voor nieuwe/vervallen rivalries. Hervalideer de FanGraphs-odds-veldnamen (SPEC §11.4) als de odds-adapter actief is.
 
-Controleer ook (tv-gids, SPEC §3.3): de ESPN watch-API-constanten (`ESPN_WATCH_API_KEY`/`ESPN_MLB_CATEGORY_ID` in `honkbal/fetch/tv_guide.py` — publieke constanten uit de espn.nl-paginabundel, kunnen roteren) en de tvgids.nl-kanaal-id's (`_TVGIDS_CHANNELS`), zodra de fetch structureel op de fallback of op niets draait.
+Controleer ook (tv-gids, SPEC §3.3): de ESPN watch-apiKey herstelt zichzelf (`build.yml` draait `npm run discover:espn` zodra de vorige fetch niet meer op bron `espn` draaide; `frontend/tools/discover-espn-watch.mjs` kijkt de key headless af en schrijft `.data/espn_watch_config.json`, dat voorrang krijgt op de fallback-constante `ESPN_WATCH_API_KEY`). Controleer alleen nog de tvgids.nl-kanaal-id's (`_TVGIDS_CHANNELS`) — en de discovery zelf — zodra de fetch structureel op de fallback of op niets draait.
 
 ## Bekende valkuilen
 
@@ -237,7 +239,7 @@ Controleer ook (tv-gids, SPEC §3.3): de ESPN watch-API-constanten (`ESPN_WATCH_
 - **`next_year` wordt legacy berekend** (voor de rollover, SPEC §4.3) — bewuste eigenaarsbeslissing, geen bug.
 - **Enrichment faalt nooit de build.** Standings-fetch (`fetch/standings.py`) en odds-load (`fetch/playoff_odds.py`) falen zacht: ontbreken ze, dan dragen alleen de overige signalen bij en blijft `enrichment` evt. `None`. Enrichment draait **alleen vóór `season.windows.ps`**; in de postseason wordt het overgeslagen.
 - **`config/rivalries.py` + `TEAM_DIVISIONS` zijn handmatig.** Divisie-indeling en rivalry-tiers staan hardcoded; controleer ze jaarlijks (her-/promotie-divisies, nieuwe rivalries) — zie "Jaarlijks onderhoud".
-- **Tv-gids faalt nooit de build.** `fetch/tv_guide.py` faalt zacht (ESPN-API primair, tvgids.nl fallback, anders bestaande `.data/tv_guide.json` behouden); zonder bruikbare cache rendert het schema zonder zenderlogo's. De `apiKey`/`categoryId` zijn publieke espn.nl-paginaconstanten — géén secrets, wel een jaarlijks-onderhouditem. Alleen-tvgids betekent minder matches (meestal geen teamnamen, geen ESPN Extra, geen NL-badges).
+- **Tv-gids faalt nooit de build.** `fetch/tv_guide.py` faalt zacht (ESPN-API primair, tvgids.nl fallback, anders bestaande `.data/tv_guide.json` behouden); zonder bruikbare cache rendert het schema zonder zenderlogo's. De `apiKey` is een publieke espn.nl-paginaconstante — géén secret; bij rotatie herstelt CI hem zelf (`npm run discover:espn`, zie "Jaarlijks onderhoud"). Er is bewust géén categoryId: de adapter filtert client-side op subcategory/league == MLB. ESPN Extra is bewust uitgesloten. Alleen-tvgids betekent minder matches (meestal geen teamnamen, geen NL-badges).
 - **Playoff-odds-bron is nog niet bekabeld.** `load_playoff_odds` leest alleen `.data/playoff_odds.json` (genormaliseerd). Zolang geen adapter dat bestand schrijft, draagt het odds-signaal niets bij — enrichment werkt dan op rivalry/divisie/standen. FanGraphs-scrape-ontwerp: zie SPEC §11.4 en "Playoff-odds scrapen" hieronder.
 
 ## Wat je niet moet committen

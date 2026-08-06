@@ -20,7 +20,6 @@ CHANNEL_LABELS: dict[str, str] = {
     "espn2": "ESPN2",
     "espn3": "ESPN3",
     "espn4": "ESPN4",
-    "espn_extra": "ESPN Extra",
 }
 
 
