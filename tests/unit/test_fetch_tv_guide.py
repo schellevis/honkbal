@@ -1,17 +1,19 @@
 import json
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 import httpx
 import pytest
 
 from honkbal.clock import AMSTERDAM, FrozenClock
+from honkbal.config.toggles import TV_GUIDE_DAYS
 from honkbal.fetch.http import Throttle
 from honkbal.fetch.tv_guide import (
     _detect_nl_commentary,
     _looks_like_game,
     _parse_teams,
+    _tz_param,
     fetch_tv_guide,
 )
 
@@ -105,7 +107,10 @@ def test_fetch_tv_guide_writes_espn_cache(tmp_path):
 
     assert result.ok is True
     assert result.source == "espn"
-    assert days == ["2026-08-05", "2026-08-06", "2026-08-07", "2026-08-08"]
+    assert days == [
+        (datetime(2026, 8, 5) + timedelta(days=i)).strftime("%Y-%m-%d")
+        for i in range(TV_GUIDE_DAYS)
+    ]
     assert cache["source"] == "espn"
 
     airings = cache["airings"]
@@ -151,12 +156,11 @@ def test_fetch_tv_guide_uses_each_days_dst_offset(tmp_path):
     )
 
     assert result.ok is True
-    assert offsets == [
-        ("2026-03-28", "UTC+0100"),
-        ("2026-03-29", "UTC+0200"),
-        ("2026-03-30", "UTC+0200"),
-        ("2026-03-31", "UTC+0200"),
-    ]
+    expected_days = [clock.now() + timedelta(days=i) for i in range(TV_GUIDE_DAYS)]
+    assert offsets == [(day.date().isoformat(), _tz_param(day)) for day in expected_days]
+    # Kruist de DST-overgang van 2026-03-29: offset springt van +0100 naar +0200.
+    assert offsets[0][1] == "UTC+0100"
+    assert offsets[1][1] == "UTC+0200"
 
 
 def test_fetch_tv_guide_prefers_discovered_api_key(tmp_path):
@@ -208,7 +212,7 @@ def test_fetch_tv_guide_falls_back_to_tvgids(tmp_path):
 
     assert result.ok is True
     assert result.source == "tvgids"
-    assert tvgids_days == ["0", "1", "2", "3"]
+    assert tvgids_days == [str(i) for i in range(TV_GUIDE_DAYS)]
 
     airings = cache["airings"]
     # "MLB Quick pitch" is geen wedstrijd en valt weg.
