@@ -74,8 +74,14 @@ function scheduleTable(rows) {
   return table;
 }
 
+function scheduledRow(away, home, gameDate = "2026-07-27T00:10:00Z") {
+  const row = makeRow({ away, home });
+  row.dataset.start = String(Date.parse(gameDate) / 1000);
+  return row;
+}
+
 test("syncHiddenRows hides the static row of a live game and restores it afterwards", () => {
-  const row = makeRow({ away: "mets", home: "phillies" });
+  const row = scheduledRow("mets", "phillies");
   const other = makeRow({ away: "cubs", home: "brewers" });
   scheduleTable([row, other]);
 
@@ -89,8 +95,8 @@ test("syncHiddenRows hides the static row of a live game and restores it afterwa
 });
 
 test("syncHiddenRows hides only one row per live game for a doubleheader", () => {
-  const row1 = makeRow({ away: "mets", home: "phillies" });
-  const row2 = makeRow({ away: "mets", home: "phillies" });
+  const row1 = scheduledRow("mets", "phillies");
+  const row2 = scheduledRow("mets", "phillies");
   scheduleTable([row1, row2]);
 
   live.syncHiddenRows(globalThis.document, [liveGame("New York Mets", "Philadelphia Phillies")]);
@@ -113,6 +119,28 @@ test("syncHiddenRows hides the doubleheader row closest to the API start time", 
   assert.equal(game2.hidden, true, "game 2 (live) wordt gededupliceerd");
 });
 
+test("syncHiddenRows keeps tonight's rematch visible for a game still live from last night", () => {
+  const tonight = scheduledRow("rays", "athletics", "2026-08-12T17:40:00Z");
+  scheduleTable([tonight]);
+
+  live.syncHiddenRows(globalThis.document, [
+    liveGame("Tampa Bay Rays", "Athletics", { gameDate: "2026-08-12T02:40:00Z" }),
+  ]);
+
+  assert.equal(tonight.hidden, false);
+});
+
+test("syncHiddenRows does not hide a row without a reliable start time", () => {
+  const tbd = makeRow({ away: "rays", home: "athletics" });
+  scheduleTable([tbd]);
+
+  live.syncHiddenRows(globalThis.document, [
+    liveGame("Tampa Bay Rays", "Athletics", { gameDate: "2026-08-12T02:40:00Z" }),
+  ]);
+
+  assert.equal(tbd.hidden, false);
+});
+
 // --- syncHiddenRows: lege dagkoppen (SPEC §6.8) ---
 function dayCluster(headerLabel, rows) {
   const doc = globalThis.document;
@@ -129,7 +157,7 @@ function dayCluster(headerLabel, rows) {
 }
 
 test("syncHiddenRows hides the day header when all its games move to the live section", () => {
-  const only = makeRow({ away: "mets", home: "phillies" });
+  const only = scheduledRow("mets", "phillies");
   const { thead } = dayCluster("VANDAAG", [only]);
 
   live.syncHiddenRows(globalThis.document, [liveGame("New York Mets", "Philadelphia Phillies")]);
@@ -143,7 +171,7 @@ test("syncHiddenRows hides the day header when all its games move to the live se
 });
 
 test("syncHiddenRows keeps the day header while a sibling game stays visible", () => {
-  const liveRow = makeRow({ away: "mets", home: "phillies" });
+  const liveRow = scheduledRow("mets", "phillies");
   const other = makeRow({ away: "cubs", home: "brewers" });
   const { thead } = dayCluster("VANDAAG", [liveRow, other]);
 
@@ -155,7 +183,7 @@ test("syncHiddenRows keeps the day header while a sibling game stays visible", (
 
 test("syncHiddenRows hides the day header when the remaining row is interest-filtered", () => {
   // Gemengd geval: één game live (row.hidden), de rest weggefilterd (interest-hidden) → leeg.
-  const liveRow = makeRow({ away: "mets", home: "phillies" });
+  const liveRow = scheduledRow("mets", "phillies");
   const filtered = makeRow({ away: "cubs", home: "brewers" });
   filtered.classList.add("interest-hidden");
   const { thead } = dayCluster("VANDAAG", [liveRow, filtered]);

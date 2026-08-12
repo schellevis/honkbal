@@ -570,13 +570,14 @@ de topnavigatielink "schema" wijst óók naar `/avond.html` maar behoudt zijn la
 - Kop "nu bezig". Geen live wedstrijden → sectie volledig leeg/verborgen (geen lege tabel of
   melding). De sectie sluit zonder losse tussenruimte aan op het schema eronder (net als de
   overgang tussen twee schemadagen); geen extra `margin` tussen de live-tabel en het schema.
-- Dedup met het statische schema: voor elke getoonde live wedstrijd wordt de overeenkomstige
-  statische rij (`data-away-team`/`data-home-team`-match binnen de schematabel) verborgen; bij elke
-  refresh wordt de verborgen set opnieuw bepaald (een afgelopen wedstrijd verdwijnt uit de
-  live-sectie en de statische rij komt terug). Bij meerdere kandidaat-rijen (doubleheader) wint de
-  rij waarvan `data-start` (starttijd in epoch-seconden, build-time op elke getimede rij) het
-  **dichtst** bij de `gameDate` van de API ligt — exact matchen kan niet omdat ticketingfeed en
-  Stats API enkele minuten kunnen verschillen; rijen zonder `data-start` (TBD) zijn laatste keus.
+- Dedup met het statische schema: voor elke getoonde live wedstrijd wordt alleen een statische rij
+  verborgen als `data-away-team`/`data-home-team` overeenkomen én `data-start` maximaal **60
+  minuten** afwijkt van de `gameDate` van de API. Bij elke refresh wordt de verborgen set opnieuw
+  bepaald (een afgelopen wedstrijd verdwijnt uit de live-sectie en de statische rij komt terug).
+  Bij meerdere geldige kandidaat-rijen (doubleheader) wint de rij met de kleinste tijdsafstand.
+  Ontbreekt een leesbare starttijd aan een van beide kanten of valt geen kandidaat binnen de grens,
+  dan wordt geen statische rij verborgen; een eventuele dubbele weergave is veiliger dan een andere
+  wedstrijd uit het schema verbergen.
 - Dagkoppen waarvan alle rijen verborgen zijn (naar de "nu bezig"-sectie verplaatst) worden mee
   verborgen — anders blijft er een verweesd datumkopje staan. Dezelfde kop-synchronisatie als het
   interessefilter (§6.9): een rij telt als zichtbaar zolang hij niet door de live-dedup (`hidden`)

@@ -10,6 +10,10 @@ import { isFavoriteMatchup, applyFavoriteHighlights, initFavorites, normalizeTea
 // binnen [start, start + 5u] kan een wedstrijd bezig zijn, daarbuiten pollen we niet.
 export const LIVE_WINDOW_MS = 5 * 3600 * 1000;
 
+// Ticketingfeed en Stats API kunnen enkele minuten verschillen. Een ruimere afwijking betekent
+// dat het om een andere wedstrijd gaat (bijvoorbeeld dezelfde matchup later op de dag).
+export const LIVE_MATCH_TOLERANCE_MS = 60 * 60 * 1000;
+
 // data-live-windows-attribuut (JSON-array van epoch-seconden, SPEC §6.8) → array of null.
 // null = attribuut afwezig/onleesbaar → altijd pollen (gedrag van vóór de venster-gating).
 export function parseLiveWindows(raw) {
@@ -76,11 +80,10 @@ export function renderLiveHtml(games, isFav) {
 }
 
 // Dedup met het statische schema: verberg per live wedstrijd één overeenkomstige statische rij
-// (data-away-team/data-home-team-match). Bij elke refresh opnieuw bepaald, dus een afgelopen
-// wedstrijd laat z'n statische rij weer terugkomen. Bij een doubleheader (twee rijen met
-// dezelfde teams) wint de rij waarvan data-start (epoch-seconden, build-time) het dichtst bij
-// de gameDate van de API ligt — exact matchen kan niet omdat ticketingfeed en Stats API
-// enkele minuten kunnen verschillen.
+// (data-away-team/data-home-team-match én start binnen 60 minuten). Bij elke refresh opnieuw
+// bepaald, dus een afgelopen wedstrijd laat z'n statische rij weer terugkomen. Bij een
+// doubleheader wint de geldige rij waarvan data-start (epoch-seconden, build-time) het dichtst
+// bij de gameDate van de API ligt.
 export function syncHiddenRows(doc, games) {
   const wanted = games.map((g) => ({
     key: `${normalizeTeam(g.teams.away.team.name)}|${normalizeTeam(g.teams.home.team.name)}`,
@@ -90,23 +93,20 @@ export function syncHiddenRows(doc, games) {
     const rows = [...container.querySelectorAll("[data-away-team]")];
     const hidden = new Set();
     for (const w of wanted) {
-      const candidates = rows.filter(
-        (r) => !hidden.has(r) && `${r.dataset.awayTeam}|${r.dataset.homeTeam}` === w.key
-      );
-      if (!candidates.length) continue;
-      let pick = candidates[0];
-      if (Number.isFinite(w.startMs)) {
-        let best = Infinity;
-        for (const r of candidates) {
-          const rowStart = Number(r.dataset.start);
-          // Rijen zonder bruikbare data-start (TBD) alleen als laatste redmiddel.
-          const dist = Number.isFinite(rowStart)
-            ? Math.abs(rowStart * 1000 - w.startMs)
-            : Number.MAX_SAFE_INTEGER;
-          if (dist < best) { best = dist; pick = r; }
+      if (!Number.isFinite(w.startMs)) continue;
+      let pick = null;
+      let best = Infinity;
+      for (const r of rows) {
+        if (hidden.has(r) || `${r.dataset.awayTeam}|${r.dataset.homeTeam}` !== w.key) continue;
+        const rowStart = Number(r.dataset.start);
+        if (!Number.isFinite(rowStart) || rowStart <= 0) continue;
+        const dist = Math.abs(rowStart * 1000 - w.startMs);
+        if (dist <= LIVE_MATCH_TOLERANCE_MS && dist < best) {
+          best = dist;
+          pick = r;
         }
       }
-      hidden.add(pick);
+      if (pick) hidden.add(pick);
     }
     for (const row of rows) row.hidden = hidden.has(row);
   }
