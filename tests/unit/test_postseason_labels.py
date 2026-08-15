@@ -17,12 +17,14 @@ def _psgame(hour, away, home, d=date(2026, 10, 14)):
 
 def test_date_derived_phase_boundaries():
     s = _season()
+    # grenzen volgen het aangekondigde 2026-schema: wc 29-09, ds 03-10, cs 11-10, ws 23-10
+    assert date_derived_phase(date(2026, 9, 29), "Yankees", "Red Sox", season=s) == "AL Wild Card"
     assert date_derived_phase(date(2026, 10, 1), "Yankees", "Red Sox", season=s) == "AL Wild Card"
     assert date_derived_phase(date(2026, 10, 5), "Yankees", "Red Sox", season=s) == "ALDS"
     assert date_derived_phase(date(2026, 10, 13), "Yankees", "Red Sox", season=s) == "ALCS"
     assert date_derived_phase(date(2026, 10, 25), "Yankees", "Red Sox", season=s) == "World Series"
     assert date_derived_phase(date(2026, 10, 5), "Mets", "Cubs", season=s) == "NLDS"
-    assert date_derived_phase(date(2026, 9, 30), "Yankees", "Red Sox", season=s) is None
+    assert date_derived_phase(date(2026, 9, 28), "Yankees", "Red Sox", season=s) is None
 
 
 def test_postseason_label_espn_match_wins_over_fallback():

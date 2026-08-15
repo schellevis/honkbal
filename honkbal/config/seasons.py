@@ -18,8 +18,12 @@ RAW_SEASONS: dict[int, dict[str, str | list[str]]] = {
     2026: {
         "reg": "25-03-2026", "showfrom": "26-03-2026", "einde": "15-11-2026",
         "allstargame": "14-07-2026",
-        "ps": "01-10-2026", "wc": "01-10-2026", "ds": "05-10-2026",
-        "cs": "13-10-2026", "ws": "25-10-2026",
+        # Postseason 2026 zoals door MLB aangekondigd (10-08-2026):
+        # Wild Card 29-09 t/m 01-10, DS 03-10 t/m 10-10, NLCS vanaf 11-10 (ALCS 12-10),
+        # World Series 23-10, evt. game 7 op 31-10. `cs` = vroegste CS-dag, zodat de
+        # fase-labels (SPEC §5.x) vanaf 11-10 CS tonen i.p.v. DS.
+        "ps": "29-09-2026", "wc": "29-09-2026", "ds": "03-10-2026",
+        "cs": "11-10-2026", "ws": "23-10-2026",
         "new": "01-01-2027", "hide": "01-02-2027",
         # newreg (2027 reguliere start) bewust weggelaten: nog onbekend → unknown-state.
         # Voeg toe zodra MLB de 2027 opening day bekendmaakt.
