@@ -12,6 +12,7 @@ from honkbal.fetch.http import Throttle
 from honkbal.fetch.tv_guide import (
     _detect_nl_commentary,
     _looks_like_game,
+    _parse_bases_covered_schedule,
     _parse_teams,
     _tz_param,
     fetch_tv_guide,
@@ -80,11 +81,85 @@ def test_parse_teams(title, expected):
         ("Major League Baseball 2026", True),
         ("MLB Quick Pitch", False),
         ("MLB Plays of the Week", False),
-        ("MLB bases covered live", False),
+        ("MLB Bases Covered Live", True),
+        ("MLB bases covered live", True),
     ],
 )
 def test_looks_like_game(title, expected):
     assert _looks_like_game(title) is expected
+
+
+BASES_COVERED_AIRING = {
+    "data": {
+        "airings": [
+            {
+                "id": "bc1",
+                "name": "MLB Bases Covered Live",
+                "type": "UPCOMING",
+                "startDateTime": "2026-08-09T17:30:00Z",
+                "endDateTime": "2026-08-09T20:35:00Z",
+                "feedName": None,
+                "network": {"abbreviation": "nl_espn4", "name": "ESPN4"},
+                "subcategory": {"name": "MLB"},
+                "league": {"name": "MLB"},
+            }
+        ]
+    }
+}
+
+
+def test_parse_bases_covered_schedule():
+    html = (FIXTURES / "bases_covered.html").read_text()
+
+    schedule = _parse_bases_covered_schedule(html, 2026)
+
+    # "Final Day - TBC" en "Plus two Postseason doubleheaders" zijn geen teamparen.
+    assert schedule == {
+        "2026-08-02": ["cubs", "yankees"],
+        "2026-08-09": ["blue jays", "phillies"],
+        "2026-08-16": ["blue jays", "yankees"],
+    }
+
+
+def test_fetch_tv_guide_fills_bases_covered_teams_from_mlb_com(tmp_path):
+    mlb_calls = []
+
+    def handler(req):
+        if req.url.host == "www.mlb.com":
+            mlb_calls.append(req.url.path)
+            return httpx.Response(200, text=(FIXTURES / "bases_covered.html").read_text())
+        variables = json.loads(req.url.params["variables"])
+        if variables["day"] == "2026-08-09":
+            return httpx.Response(200, json=BASES_COVERED_AIRING)
+        return httpx.Response(200, json=EMPTY_ESPN)
+
+    result = _fetch(tmp_path, handler)
+    cache = json.loads((tmp_path / "tv_guide.json").read_text())
+
+    assert result.ok is True
+    assert mlb_calls == ["/international/europe/bases-covered-live"]
+    (airing,) = cache["airings"]
+    assert airing["title"] == "MLB Bases Covered Live"
+    assert airing["channel"] == "espn4"
+    # Hoofdwedstrijd van zondag 9 augustus volgens de MLB.com-pagina.
+    assert airing["teams"] == ["blue jays", "phillies"]
+
+
+def test_fetch_tv_guide_bases_covered_soft_fails_without_mlb_page(tmp_path):
+    def handler(req):
+        if req.url.host == "www.mlb.com":
+            return httpx.Response(500)
+        variables = json.loads(req.url.params["variables"])
+        if variables["day"] == "2026-08-09":
+            return httpx.Response(200, json=BASES_COVERED_AIRING)
+        return httpx.Response(200, json=EMPTY_ESPN)
+
+    result = _fetch(tmp_path, handler)
+    cache = json.loads((tmp_path / "tv_guide.json").read_text())
+
+    assert result.ok is True
+    (airing,) = cache["airings"]
+    assert airing["teams"] == []
 
 
 def test_fetch_tv_guide_writes_espn_cache(tmp_path):

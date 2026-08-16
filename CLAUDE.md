@@ -223,7 +223,7 @@ Controleer daarna: default-tab op de frontpage, datumkoppen in `debug.html`, out
 
 Controleer ook (enrichment): `honkbal/config/teams.py::TEAM_DIVISIONS` bij divisiewijzigingen en `honkbal/config/rivalries.py` voor nieuwe/vervallen rivalries. Hervalideer de FanGraphs-odds-veldnamen (SPEC §11.4) als de odds-adapter actief is.
 
-Controleer ook (tv-gids, SPEC §3.3): de ESPN watch-apiKey herstelt zichzelf (`build.yml` draait `npm run discover:espn` zodra de vorige fetch niet meer op bron `espn` draaide; `frontend/tools/discover-espn-watch.mjs` kijkt de key headless af en schrijft `.data/espn_watch_config.json`, dat voorrang krijgt op de fallback-constante `ESPN_WATCH_API_KEY`). Controleer alleen nog de tvgids.nl-kanaal-id's (`_TVGIDS_CHANNELS`) — en de discovery zelf — zodra de fetch structureel op de fallback of op niets draait.
+Controleer ook (tv-gids, SPEC §3.3): de ESPN watch-apiKey herstelt zichzelf (`build.yml` draait `npm run discover:espn` zodra de vorige fetch niet meer op bron `espn` draaide; `frontend/tools/discover-espn-watch.mjs` kijkt de key headless af en schrijft `.data/espn_watch_config.json`, dat voorrang krijgt op de fallback-constante `ESPN_WATCH_API_KEY`). Controleer alleen nog de tvgids.nl-kanaal-id's (`_TVGIDS_CHANNELS`) — en de discovery zelf — zodra de fetch structureel op de fallback of op niets draait. Controleer ook de "Bases Covered"-teambron (`BASES_COVERED_URL` + `_BC_SCHEDULE_LINE` in `fetch/tv_guide.py`): de MLB.com-pagina met de hoofdwedstrijd per uitzenddatum is seizoensgebonden content waarvan URL en regelformat kunnen wijzigen (faalt zacht: airing blijft dan teamloos en krijgt meestal geen logo).
 
 ## Bekende valkuilen
 

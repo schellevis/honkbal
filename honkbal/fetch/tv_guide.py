@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import os
 import re
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -72,6 +72,25 @@ _EVENT_HINT = re.compile(
 )
 _GENERIC_GAME = re.compile(r"^\s*major league baseball\b[\s\d]*$", re.IGNORECASE)
 
+# "MLB Bases Covered Live" (op ESPN NL en o.a. de BBC, gericht op Europa) volgt één
+# hoofdwedstrijd met doorschakelingen naar andere stadions. De ESPN-feed levert er geen
+# teampaar bij (alle kandidaatvelden — description, subtitle, eventId, gameId, franchise —
+# zijn null; live geverifieerd op 2026-08-16), maar MLB.com publiceert de hoofdwedstrijd per
+# uitzenddatum; die pagina is de teambron voor deze airings (zie _fill_bases_covered_teams).
+_BASES_COVERED = re.compile(r"bases covered", re.IGNORECASE)
+BASES_COVERED_URL = "https://www.mlb.com/international/europe/bases-covered-live"
+# Schemaregel op die pagina: "Sunday, August 16: New York Yankees vs Toronto Blue Jays @ 6:30
+# p.m. BST". Regels zonder teampaar ("Final Day - TBC") matchen niet.
+_BC_SCHEDULE_LINE = re.compile(
+    r"\b(january|february|march|april|may|june|july|august|september|october|november|"
+    r"december)\s+(\d{1,2})\s*:\s*([^<>@:]+?)\s+vs\.?\s+([^<>@:]+?)\s*@",
+    re.IGNORECASE,
+)
+_EN_MONTHS = {
+    "january": 1, "february": 2, "march": 3, "april": 4, "may": 5, "june": 6,
+    "july": 7, "august": 8, "september": 9, "october": 10, "november": 11, "december": 12,
+}
+
 # Carry-over-dedup: een oude en nieuwe airing op hetzelfde kanaal met starts binnen deze marge
 # zijn dezelfde uitzending.
 _DUPLICATE_START_TOLERANCE = timedelta(minutes=5)
@@ -98,6 +117,7 @@ def fetch_tv_guide(
         source, airings = _fetch_from_sources(
             clock, data_dir=data_dir, client=client, throttle=throttle
         )
+        _fill_bases_covered_teams(airings, clock=clock, client=client, throttle=throttle)
     except (httpx.HTTPError, ValueError, TypeError, KeyError):
         return TvGuideFetchResult(ok=False, count=0)
     finally:
@@ -308,6 +328,50 @@ def _airing_from_tvgids(program: Any, channel: str) -> dict[str, Any] | None:
     }
 
 
+def _fill_bases_covered_teams(
+    airings: list[dict[str, Any]], *, clock: Clock, client: httpx.Client, throttle: Throttle
+) -> None:
+    """Vul het hoofdwedstrijd-teampaar in voor teamloze "Bases Covered"-airings (soft-fail).
+
+    Hoogstens één extra call per build, alleen als er iets in te vullen valt. Mislukt de
+    call of ontbreekt de datum op de MLB.com-pagina, dan blijft de airing teamloos en valt
+    hij terug op de conservatieve tijdpass van de matcher.
+    """
+    todo = [a for a in airings if not a["teams"] and _BASES_COVERED.search(a["title"])]
+    if not todo:
+        return
+    try:
+        throttle.wait()
+        res = client.get(BASES_COVERED_URL)
+        res.raise_for_status()
+        schedule = _parse_bases_covered_schedule(res.text, clock.now().year)
+    except (httpx.HTTPError, ValueError, TypeError, KeyError):
+        return
+    for airing in todo:
+        start = _parse_iso(airing["start"])
+        if start is None:
+            continue
+        teams = schedule.get(start.date().isoformat())
+        if teams:
+            airing["teams"] = list(teams)
+
+
+def _parse_bases_covered_schedule(html: str, year: int) -> dict[str, list[str]]:
+    """MLB.com-schemaregels -> {ISO-datum: gesorteerd teampaar}. Onbruikbare regels vallen af."""
+    schedule: dict[str, list[str]] = {}
+    for month_name, day, away, home in _BC_SCHEDULE_LINE.findall(html):
+        team_a = _team_key(away.strip())
+        team_b = _team_key(home.strip())
+        if team_a is None or team_b is None or team_a == team_b:
+            continue
+        try:
+            key = date(year, _EN_MONTHS[month_name.lower()], int(day)).isoformat()
+        except ValueError:
+            continue
+        schedule.setdefault(key, sorted((team_a, team_b)))
+    return schedule
+
+
 def _carry_over_running(
     airings: list[dict[str, Any]], *, data_dir: Path, now: datetime
 ) -> list[dict[str, Any]]:
@@ -368,6 +432,7 @@ def _looks_like_game(title: str) -> bool:
         _TEAM_SEPARATOR.search(body)
         or _EVENT_HINT.search(body)
         or _GENERIC_GAME.match(body)
+        or _BASES_COVERED.search(body)
     )
 
 

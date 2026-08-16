@@ -216,8 +216,17 @@ De legacy-implementatie (espn.nl-HTML-scrape) is vervallen; dit is de herbouw op
 - Fallback: tvgids.nl-JSON (`json.tvgids.nl/v4/programs/?day=0..3&channels=148,468,469,470`;
   148=ESPN1, 468=ESPN2, 469=ESPN3, 470=ESPN4). Beide payloadvormen (dict per
   kanaal-id en lijst met `ch_id`) worden geaccepteerd. Alleen titels die op een wedstrijd wijzen
-  tellen mee (teamscheider "X vs Y"/"X - Y", postseason-/all-star-aanduiding of de generieke
-  titel "Major League Baseball"); magazineprogramma's ("MLB Quick Pitch") vallen af.
+  tellen mee (teamscheider "X vs Y"/"X - Y", postseason-/all-star-aanduiding, de generieke
+  titel "Major League Baseball" of "Bases Covered"); magazineprogramma's ("MLB Quick Pitch")
+  vallen af.
+- **Bases Covered-teambron:** "MLB Bases Covered Live" (whip-around, op ESPN NL en o.a. de
+  BBC) volgt één hoofdwedstrijd met doorschakelingen naar andere stadions, maar de ESPN-feed
+  levert er geen teampaar bij (alle kandidaatvelden null; live geverifieerd 2026-08-16).
+  Voor teamloze airings met deze titel haalt de fetch éénmalig (throttled, soft-fail) de
+  MLB.com-pagina `mlb.com/international/europe/bases-covered-live` op, die per uitzenddatum
+  de hoofdwedstrijd noemt ("Sunday, August 16: New York Yankees vs Toronto Blue Jays @ …"),
+  en vult het teampaar per datum in. Daarna matcht de airing via de gewone teampass; mislukt
+  de call of ontbreekt de datum, dan blijft de airing teamloos (conservatieve tijdpass).
 
 **Genormaliseerd contract — `.data/tv_guide.json`** (stabiel; bronwijziging breekt alleen de
 adapter): `fetched_at`, `season`, `source` (`espn`|`tvgids`) en `airings[]` met per airing
