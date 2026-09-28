@@ -570,7 +570,8 @@ bezig zijn, inclusief scores, en hernoemt het navigatielabel van de avond-tab cl
 bètafeature `live`, §6.9). Server-side blijft het label "avond": zonder JS draait de module niet
 en is er ook geen live-sectie. Alleen de tab in de schedule-subnav (`.nav-pills`) wordt hernoemd;
 de topnavigatielink "schema" wijst óók naar `/avond.html` maar behoudt zijn label:
-- Alleen op pagina's met `page == 'avond'` (dus ook `index.html` zolang de default-tab avond is).
+- Op pagina's met `page == 'avond'` én altijd op `index.html`, ongeacht de default-tab (§5.1): ook
+  na het reguliere seizoen en in de postseason, als de voorpagina `alles` toont.
 - ES-module `live.js` + entry `live-entry.js` (zelfde patroon als §6.1/§6.2: geen inline blobs).
 - Endpoint als §6.2 (MLB Stats API, `hydrate=linescore,team`), maar met een venster van **2 dagen**
   (NY-vandaag + NY-gisteren): een wedstrijd die in de Nederlandse ochtend nog loopt hoort bij de

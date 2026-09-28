@@ -304,3 +304,29 @@ def test_avond_page_carries_live_windows_attribute(tmp_path):
     # Alleen op de avond-tab (incl. index); nacht heeft geen live-sectie.
     assert "data-live-windows" in (out / "index.html").read_text(encoding="utf-8")
     assert "data-live-windows" not in (out / "nacht.html").read_text(encoding="utf-8")
+
+
+def test_index_keeps_live_section_when_default_tab_is_alles(tmp_path):
+    # SPEC §5.1/§6.8: na het reguliere seizoen (en in de postseason) toont index.html 'alles',
+    # maar de live-sectie hoort altijd op de voorpagina.
+    from datetime import datetime
+
+    header = "START DATE,START TIME,START TIME ET,SUBJECT"
+    row = "09/29/26,01:05 PM,01:05 PM,Padres at Cubs"
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    (data_dir / "all.csv").write_text(header + "\n" + row + "\n", encoding="utf-8")
+    (data_dir / "headers.json").write_text("{}", encoding="utf-8")
+
+    out = tmp_path / "docs"
+    now = "2026-09-28T12:00:00+02:00"
+    rc = main(
+        ["--now", now, "render", "--out", str(out), "--data-dir", str(data_dir)],
+        clock=FrozenClock(datetime.fromisoformat(now)),
+    )
+    assert rc == 0
+    index = (out / "index.html").read_text(encoding="utf-8")
+    assert 'id="live-container"' in index
+    assert "live-entry.js" in index
+    alles = (out / "alles.html").read_text(encoding="utf-8")
+    assert 'id="live-container"' not in alles
