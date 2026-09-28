@@ -11,7 +11,7 @@
 <h2>{{ countdown[0] }}</h2>
   {% endif %}
 {% endif %}
-{% if page == 'avond' %}
+{% if show_live %}
 <div id="live-container"{% if live_windows %} data-live-windows="{{ live_windows }}"{% endif %}></div>
 {% endif %}
 {% if is_empty %}
@@ -35,7 +35,7 @@
 <script type="module" src="{{ js_root }}/stale-entry.js"></script>
 <script type="module" src="{{ js_root }}/interest-entry.js"></script>
 <script type="module" src="{{ js_root }}/espn-entry.js"></script>
-{% if page == 'avond' %}
+{% if show_live %}
 <script type="module" src="{{ js_root }}/live-entry.js"></script>
 {% endif %}
 {% endblock %}

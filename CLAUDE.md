@@ -35,7 +35,7 @@ Logica-modules (geïmporteerd; exporteren `init`/functies, doen zelf geen self-i
 
 Entry-modules (extern geladen via `<script type="module">`, **geen inline blob** — SPEC §6.1; self-init op `DOMContentLoaded`):
 
-- `scores-entry.js`, `standings-entry.js`, `settings-entry.js`, `live-entry.js`, `interest-entry.js`, `stale-entry.js`, `espn-entry.js`: importeren `init` uit de bijbehorende logica-module en starten die op (`live-entry.js` alleen op pagina's met `page == 'avond'`, incl. `index.html`; `interest-entry.js` alleen als de bètafeature `interest` aanstaat, SPEC §6.9; `stale-entry.js` en `espn-entry.js` op elke schemapagina, incl. team-pagina's).
+- `scores-entry.js`, `standings-entry.js`, `settings-entry.js`, `live-entry.js`, `interest-entry.js`, `stale-entry.js`, `espn-entry.js`: importeren `init` uit de bijbehorende logica-module en starten die op (`live-entry.js` op pagina's met `page == 'avond'` én altijd op `index.html`, ook als de default-tab `alles` is; `interest-entry.js` alleen als de bètafeature `interest` aanstaat, SPEC §6.9; `stale-entry.js` en `espn-entry.js` op elke schemapagina, incl. team-pagina's).
 - `favorites-init.js`: past favoriet-highlights toe en luistert op cross-tab `storage`-events.
 - `register-sw.js`: registreert `/sw.js` (scope `/`, `updateViaCache: "none"`) — vervangt de oude inline registratie (SPEC §6.5).
 

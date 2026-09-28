@@ -71,6 +71,7 @@ def render_schedule_page(
     inline_days=None,
     tail_count: int = 0,
     live_windows: str | None = None,
+    is_index: bool = False,
 ) -> str:
     env = make_env()
     tmpl = env.get_template("schedule.html")
@@ -86,6 +87,9 @@ def render_schedule_page(
         has_postseason_footnote=ctx.has_postseason_footnote,
         teams=nav_team_list(),
         live_windows=live_windows,
+        # Live-sectie (SPEC §6.8): op de avond-tab én altijd op de voorpagina, ook als de
+        # default-tab daar 'alles' is (na het reguliere seizoen / in de postseason).
+        show_live=(ctx.page == "avond" or is_index),
     )
 
 
@@ -152,7 +156,7 @@ def render_all_schedule_pages(
             )
             write_tail(out_dir, page, tj)
 
-    dtab = default_tab(season=season, clock=clock)
+    dtab = default_tab(season=season, clock=clock, games=games)
     dtab_page = dtab if dtab in pages else "avond"
     ctx_idx = build_page_context(
         games, page=dtab_page, team_slug_q=None, season=season,
@@ -164,6 +168,7 @@ def render_all_schedule_pages(
     html_idx = render_schedule_page(
         ctx_idx, asset_version=asset_version, clock=clock, season=season,
         inline_days=inline_idx.days, tail_count=tail_count_idx, live_windows=live_windows,
+        is_index=True,
     )
     (out_dir / "index.html").write_text(html_idx, encoding="utf-8")
     results["index"] = html_idx

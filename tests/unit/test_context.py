@@ -38,6 +38,27 @@ def test_default_tab_alles_in_postseason():
     assert default_tab(season=_season(c), clock=c) == "alles"
 
 
+def test_default_tab_alles_after_regular_season_before_ps():
+    # 28-09-2026: reguliere seizoen voorbij, postseason (ps 29-09) nog niet begonnen.
+    c = FrozenClock(datetime(2026, 9, 28, 12, tzinfo=AMSTERDAM))
+    games = [_g(date(2026, 9, 29), 19, "Padres", "Cubs")]
+    assert default_tab(season=_season(c), clock=c, games=games) == "alles"
+    assert default_tab(season=_season(c), clock=c, games=[]) == "alles"
+
+
+def test_default_tab_avond_while_regular_season_games_remain():
+    c = FrozenClock(datetime(2026, 9, 27, 12, tzinfo=AMSTERDAM))
+    games = [_g(date(2026, 9, 27), 21, "Red Sox", "Yankees"),
+             _g(date(2026, 9, 29), 19, "Padres", "Cubs")]
+    assert default_tab(season=_season(c), clock=c, games=games) == "avond"
+
+
+def test_default_tab_page_context_uses_games():
+    c = FrozenClock(datetime(2026, 9, 28, 12, tzinfo=AMSTERDAM))
+    ctx = _ctx([_g(date(2026, 9, 29), 19, "Padres", "Cubs")], clock=c)
+    assert ctx.default_tab == "alles"
+
+
 def test_groups_by_day_and_orders():
     games = [
         _g(date(2026, 6, 21), 20, "Red Sox", "Yankees"),
