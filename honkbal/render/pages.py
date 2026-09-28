@@ -152,7 +152,7 @@ def render_all_schedule_pages(
             )
             write_tail(out_dir, page, tj)
 
-    dtab = default_tab(season=season, clock=clock)
+    dtab = default_tab(season=season, clock=clock, games=games)
     dtab_page = dtab if dtab in pages else "avond"
     ctx_idx = build_page_context(
         games, page=dtab_page, team_slug_q=None, season=season,

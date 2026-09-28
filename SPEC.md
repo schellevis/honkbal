@@ -368,6 +368,9 @@ Per wedstrijd uit het model: `away`/`home`, `date_ams` (`daag`), `date_et` (`old
 
 ### 5.1 Standaardtab (`index.html`) [LEGACY]
 `alles` als `nu >= start.ps` (of `nu >= einde`), anders `avond`.
+**[NEW]** Ook `alles` zodra het reguliere seizoen voorbij is: `nu >= start.reg` en de
+(op §3.2 gefilterde) gameslijst bevat geen wedstrijd meer met `date_ams` vóór de `ps`-datum.
+Dit dekt de dagen tussen de laatste reguliere wedstrijd en de eerste postseasondag.
 
 ### 5.2 Tijdfilters [LEGACY] (per pagina; regel = behouden wanneer waar)
 Op uur `hour_ams`:

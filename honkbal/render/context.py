@@ -57,10 +57,24 @@ class PageContext:
     is_empty: bool
 
 
-def default_tab(*, season: ActiveSeason, clock: Clock) -> str:
+def default_tab(
+    *, season: ActiveSeason, clock: Clock, games: list[Game] | None = None,
+) -> str:
+    """Standaardtab voor index.html (SPEC §5.1).
+
+    `alles` vanaf `ps`/`einde`, en ook al zodra het reguliere seizoen voorbij is: na `reg`
+    staat er in de (al op nu − grace gefilterde) gameslijst geen wedstrijd vóór de
+    `ps`-datum meer. Zo vult de gap tussen de laatste reguliere dag en de eerste
+    postseasondag niet langer een lege avond-tab.
+    """
     now = clock.now()
-    if now >= season.windows.ps or now >= season.windows.einde:
+    w = season.windows
+    if now >= w.ps or now >= w.einde:
         return "alles"
+    if games is not None and now >= w.reg:
+        ps_date = w.ps.date()
+        if not any(g.date_ams < ps_date for g in games):
+            return "alles"
     return "avond"
 
 
@@ -159,7 +173,7 @@ def build_page_context(
         ))
 
     total = sum(len(d.rows) for d in days)
-    tab = default_tab(season=season, clock=clock)
+    tab = default_tab(season=season, clock=clock, games=games)
     ctd = _labels.countdown(season=season, clock=clock)
 
     return PageContext(
