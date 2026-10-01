@@ -30,6 +30,7 @@ const REQUIRED_SELECTORS = [
   "tv-option",
   "ps-score-row",
   "series-line",
+  "series-decided",
 ];
 
 for (const sel of REQUIRED_SELECTORS) {

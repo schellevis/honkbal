@@ -3,34 +3,37 @@
 // module haalt bij het laden de actuele stand op via de MLB Stats API en zet die erachter
 // ("NLWC - Game 3 (1-1)"). Faalt stil: zonder API blijft het build-time label staan.
 import { mmddyyyy } from "./util/time.js";
-import { seriesLabel, seriesRecord } from "./util/series.js";
+import { seriesLabel, seriesRecord, seriesDecided } from "./util/series.js";
+import { syncDayHeaders } from "./util/dom.js";
 import { normalizeTeam } from "./favorites.js";
 
 const DAY_MS = 24 * 3600 * 1000;
-// Een rij hoort bij de API-game van hetzelfde teampaar met de dichtstbijzijnde starttijd; verder
-// dan een dag ernaast is het een andere wedstrijd (bv. een serie die al voorbij is).
-export const SERIES_MATCH_TOLERANCE_MS = DAY_MS;
+// Een rij hoort bij de API-game van hetzelfde teampaar met de dichtstbijzijnde starttijd. Ruim
+// genoeg voor een vervallen *-game (vorige serie-game ~1 dag eerder, plus een rustdag); verder weg
+// is het een andere serie.
+export const SERIES_MATCH_TOLERANCE_MS = 2 * DAY_MS;
 
 function rowStartMs(row) {
   const s = Number(row.dataset.start);
   return Number.isFinite(s) && s > 0 ? s * 1000 : null;
 }
 
-// Eén schedule-call over alle getimede postseason-rijen (±1 dag marge voor NY/UTC-verschil).
+// Eén schedule-call over alle getimede postseason-rijen (± de matchtolerantie).
 // null = geen getimede postseason-rijen → niets op te halen.
 export function seriesUrl(rows) {
   const starts = rows.map(rowStartMs).filter((s) => s !== null);
   if (!starts.length) return null;
-  const from = new Date(Math.min(...starts) - DAY_MS);
-  const to = new Date(Math.max(...starts) + DAY_MS);
+  const from = new Date(Math.min(...starts) - SERIES_MATCH_TOLERANCE_MS);
+  const to = new Date(Math.max(...starts) + SERIES_MATCH_TOLERANCE_MS);
   return (
     `https://statsapi.mlb.com/api/v1/schedule?sportId=1&gameType=F,D,L,W` +
     `&startDate=${mmddyyyy(from)}&endDate=${mmddyyyy(to)}`
   );
 }
 
-// Werkt de badge van elke rij bij met label + stand van de best passende API-game.
-// Geeft het aantal bijgewerkte rijen terug.
+// Werkt de badge van elke rij bij met label + stand van de best passende API-game, en verbergt
+// (class `series-decided`) een rij die niet meer gespeeld wordt: geen eigen API-game meer, en de
+// serie was bij een eerdere game al beslist. Geeft het aantal bijgewerkte rijen terug.
 export function applySeries(rows, games) {
   let updated = 0;
   for (const row of rows) {
@@ -58,6 +61,8 @@ export function applySeries(rows, games) {
     const label = (sameGame && seriesLabel(pick)) || buildLabel;
     const record = seriesRecord(pick);
     badge.textContent = record ? `${label} ${record}` : label;
+    const moot = !sameGame && Date.parse(pick.gameDate) < startMs && seriesDecided(pick);
+    row.classList.toggle("series-decided", moot);
     updated++;
   }
   return updated;
@@ -74,6 +79,7 @@ export async function init(doc, { fetch: fetchFn } = {}) {
     const data = await resp.json();
     const games = (data?.dates ?? []).flatMap((d) => d.games ?? []);
     applySeries(rows, games);
+    syncDayHeaders(doc);
   } catch {
     // Netwerkfout: build-time label blijft staan.
   }
