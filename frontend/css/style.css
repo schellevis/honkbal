@@ -250,6 +250,12 @@ p.tiny { font-size: 12px; }
   align-items: center;
   gap: 4px;
 }
+/* Postseason-serie-badge boven de teams in de live-/scorerij (SPEC §6.12). De badge mag over
+   de thuisteam-cel heen lopen; de teams zakken naar de onderkant zodat ze uitgelijnd blijven. */
+tr.ps-score-row > td { vertical-align: bottom; }
+.series-line { white-space: nowrap; margin-bottom: 4px; }
+.series-line .stp { margin-left: 0; }
+
 .stp-inning {
   display: inline-flex;
   align-items: center;

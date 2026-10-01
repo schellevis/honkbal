@@ -3,6 +3,7 @@ import { amsHHmm, nyDateWindow, mmddyyyy, yyyymmdd } from "./util/time.js";
 import { logoPicture, displayName } from "./util/logo.js";
 import { teamAbbr } from "./util/teams.js";
 import { escapeHtml } from "./util/dom.js";
+import { seriesBadgeText } from "./util/series.js";
 import { isFavoriteMatchup, applyFavoriteHighlights, initFavorites, normalizeTeam } from "./favorites.js";
 
 export const CACHE_VERSION = 1;
@@ -251,13 +252,19 @@ function renderScoreRow(game, isFav) {
   const home = game.teams.home.team;
   const label = statusLabel(game);
   const isFavGame = isFav(away.name, home.name);
-  const cls = isFavGame ? ' class="favorite-game"' : "";
   // Canonieke nickname-vorm (matcht favorites + schedule-rijen), niet de gehyphende API-naam.
   const awayNorm = normalizeTeam(away.name);
   const homeNorm = normalizeTeam(home.name);
+  // Postseason: serie-badge ("NLWC - Game 3 (1-1)") boven de teams, zoals in het schema.
+  const badge = seriesBadgeText(game);
+  const badgeHtml = badge
+    ? `<div class="series-line"><span class="stp">${escapeHtml(badge)}</span></div>`
+    : "";
+  const classes = [isFavGame ? "favorite-game" : "", badge ? "ps-score-row" : ""].filter(Boolean);
+  const cls = classes.length ? ` class="${classes.join(" ")}"` : "";
   return (
     `<tr${cls} data-away-team="${escapeHtml(awayNorm)}" data-home-team="${escapeHtml(homeNorm)}">` +
-    `<td style="width:44%;max-width:0">${renderTeamScore(game.teams.away)}</td>` +
+    `<td style="width:44%;max-width:0">${badgeHtml}${renderTeamScore(game.teams.away)}</td>` +
     `<td style="width:44%;max-width:0">${renderTeamScore(game.teams.home)}</td>` +
     `<td style="width:1%;white-space:nowrap;text-align:right">${label.html}</td>` +
     `</tr>`

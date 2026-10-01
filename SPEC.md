@@ -680,6 +680,24 @@ De zenderlogo's (§3.3) staan voor iedereen aan; twee gewone instellingen (geen 
   direct opgeslagen (patroon §6.9); cross-tab sync via `storage`-events. Zonder JS of zonder
   opgeslagen keuze toont het schema gewoon alle logo's uit de build.
 
+### 6.12 Postseason-serie-badge en -stand (client-side) [NEW]
+Postseason-wedstrijden tonen client-side hun serie-label en de actuele serie-stand, bron MLB
+Stats API (`/schedule`, gewone `hydrate=linescore,team`-payload; geen extra hydrate):
+- **Label** uit `gameType` (`F`=WC, `D`=DS, `L`=CS, `W`=World Series) + liga (`team.league.id`
+  103=AL/104=NL, fallback `seriesDescription`) + `seriesGameNumber`, `*` bij `ifNecessary == "Y"`:
+  `NLWC - Game 3`, `ALDS - Game 5*`, `World Series - Game 1` — zelfde vorm als de ESPN-labels (§5.6).
+- **Stand** `(x-y)` = `teams.away.leagueRecord.wins`-`teams.home.leagueRecord.wins` (in de
+  postseason telt `leagueRecord` alleen de huidige serie); uitteam vooraan. `0-0` → geen stand.
+- **Live-/scorerij** (§6.2/§6.8): badge `<span class="stp">label (x-y)</span>` in een
+  `div.series-line` boven het uitteam; de rij krijgt class `ps-score-row`.
+- **Statisch schema**: ES-module `series.js` + entry `series-entry.js` op elke schemapagina.
+  Zonder `tr.ps-row` geen API-call. Anders één call
+  (`gameType=F,D,L,W&startDate..endDate` over de `data-start` van de postseason-rijen ±1 dag);
+  per rij de API-game van hetzelfde teampaar met de dichtstbijzijnde `gameDate` (max. 24 u). Valt
+  die binnen 60 min, dan vervangt het API-label het build-label; anders (bv. een `*`-game van een
+  al beslist serie) blijft het build-label staan. De stand vervangt een eventuele build-time stand.
+  Netwerkfout of geen match → badge ongewijzigd.
+
 ---
 
 ## 7. Assets en cache-busting
