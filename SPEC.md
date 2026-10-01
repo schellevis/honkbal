@@ -692,11 +692,16 @@ Stats API (`/schedule`, gewone `hydrate=linescore,team`-payload; geen extra hydr
   `div.series-line` boven het uitteam; de rij krijgt class `ps-score-row`.
 - **Statisch schema**: ES-module `series.js` + entry `series-entry.js` op elke schemapagina.
   Zonder `tr.ps-row` geen API-call. Anders één call
-  (`gameType=F,D,L,W&startDate..endDate` over de `data-start` van de postseason-rijen ±1 dag);
-  per rij de API-game van hetzelfde teampaar met de dichtstbijzijnde `gameDate` (max. 24 u). Valt
+  (`gameType=F,D,L,W&startDate..endDate` over de `data-start` van de postseason-rijen ±2 dagen);
+  per rij de API-game van hetzelfde teampaar met de dichtstbijzijnde `gameDate` (max. 48 u). Valt
   die binnen 60 min, dan vervangt het API-label het build-label; anders (bv. een `*`-game van een
   al beslist serie) blijft het build-label staan. De stand vervangt een eventuele build-time stand.
   Netwerkfout of geen match → badge ongewijzigd.
+- **Beslist serie**: heeft een rij geen eigen API-game (geen match binnen 60 min), valt de
+  gevonden game vóór de rij én is de serie daarin beslist (één team > `gamesInSeries`/2 zeges:
+  WC 2, DS 3, CS/WS 4), dan wordt de rij niet meer gespeeld en krijgt hij class `series-decided`
+  (verborgen; telt mee in de dagkop-synchronisatie van §6.8/§6.9/§6.10). Netwerkfout of onbekend
+  `gamesInSeries` → rij blijft staan.
 
 ---
 

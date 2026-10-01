@@ -45,3 +45,14 @@ export function seriesBadgeText(game) {
   const record = seriesRecord(game);
   return record ? `${label} ${record}` : label;
 }
+
+// Serie beslist: één team heeft meer dan de helft van `gamesInSeries` gewonnen (WC 2, DS 3,
+// CS/WS 4). Onbekend aantal wedstrijden → niet beslist.
+export function seriesDecided(game) {
+  if (!seriesLabel(game)) return false;
+  const total = game.gamesInSeries;
+  if (!Number.isInteger(total) || total <= 0) return false;
+  const away = game.teams?.away?.leagueRecord?.wins ?? 0;
+  const home = game.teams?.home?.leagueRecord?.wins ?? 0;
+  return Math.max(away, home) > total / 2;
+}

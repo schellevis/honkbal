@@ -2,7 +2,7 @@ import { test, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { installDom, restoreDom, makeRow } from "./dom-stub.js";
 import { installFetch, restoreFetch, lastCalls } from "./fetch-stub.js";
-import { seriesLabel, seriesRecord, seriesBadgeText } from "../js/util/series.js";
+import { seriesLabel, seriesRecord, seriesBadgeText, seriesDecided } from "../js/util/series.js";
 import { renderScoresHtml } from "../js/scores.js";
 
 let series;
@@ -16,10 +16,10 @@ afterEach(() => { restoreFetch(); restoreDom(); });
 function psGame({
   away = "Philadelphia Phillies", home = "Atlanta Braves", gameType = "F", league = 104,
   n = 3, ifNecessary = "N", awayWins = 1, homeWins = 1, gameDate = "2026-10-01T18:00:00Z",
-  state = "Live",
+  state = "Live", gamesInSeries = 3,
 } = {}) {
   return {
-    gameType, seriesGameNumber: n, ifNecessary, gameDate,
+    gameType, seriesGameNumber: n, ifNecessary, gameDate, gamesInSeries,
     status: { abstractGameState: state, detailedState: "In Progress" },
     linescore: { currentInning: 2, isTopInning: false, outs: 0, offense: {} },
     teams: {
@@ -47,6 +47,14 @@ test("seriesRecord: stand met uitteam vooraan, 0-0 weggelaten", () => {
   assert.equal(seriesRecord(psGame({ awayWins: 0, homeWins: 0 })), null);
   assert.equal(seriesRecord(psGame({ gameType: "R" })), null);
   assert.equal(seriesBadgeText(psGame({ awayWins: 2, homeWins: 1 })), "NLWC - Game 3 (2-1)");
+});
+
+test("seriesDecided: meer dan de helft van gamesInSeries gewonnen", () => {
+  assert.equal(seriesDecided(psGame({ awayWins: 2, homeWins: 0 })), true);
+  assert.equal(seriesDecided(psGame({ awayWins: 1, homeWins: 1 })), false);
+  assert.equal(seriesDecided(psGame({ gameType: "D", gamesInSeries: 5, awayWins: 2, homeWins: 1 })), false);
+  assert.equal(seriesDecided(psGame({ gameType: "D", gamesInSeries: 5, awayWins: 1, homeWins: 3 })), true);
+  assert.equal(seriesDecided(psGame({ gamesInSeries: null, awayWins: 2, homeWins: 0 })), false);
 });
 
 // --- live-/scorerij ---
@@ -79,7 +87,7 @@ test("init zet de actuele stand achter het label van de schemarij", async () => 
   installFetch({ "statsapi.mlb.com": { ok: true, status: 200, payload: { dates: [{ games: [psGame()] }] } } });
   await series.init(globalThis.document);
   assert.equal(badge.textContent, "NLWC - Game 3 (1-1)");
-  assert.match(lastCalls()[0], /gameType=F,D,L,W&startDate=09\/30\/2026&endDate=10\/02\/2026/);
+  assert.match(lastCalls()[0], /gameType=F,D,L,W&startDate=09\/29\/2026&endDate=10\/03\/2026/);
 });
 
 test("applySeries vervangt een build-time stand en valt bij een andere serie-game terug op het build-label", () => {
@@ -93,6 +101,9 @@ test("applySeries vervangt een build-time stand en valt bij een andere serie-gam
   assert.equal(series.applySeries([r1, r2], games), 2);
   assert.equal(b1.textContent, "NLWC - Game 3 (1-1)");
   assert.equal(b2.textContent, "ALWC - Game 3* (2-0)");
+  // Serie beslist bij game 2 → de *-game wordt niet meer gespeeld en verdwijnt.
+  assert.equal(r2.classList.contains("series-decided"), true);
+  assert.equal(r1.classList.contains("series-decided"), false);
 });
 
 test("applySeries laat rijen zonder passende API-game ongemoeid", () => {
@@ -112,4 +123,18 @@ test("init bij netwerkfout laat het build-label staan", async () => {
   installFetch({ "statsapi.mlb.com": new Error("offline") });
   await series.init(globalThis.document);
   assert.equal(badge.textContent, "NLWC - Game 3");
+});
+
+test("applySeries verbergt een gespeelde/lopende beslissende game zelf niet", () => {
+  const { row } = psRow("white sox", "astros", "2026-09-30T21:00:00Z", "ALWC - Game 2");
+  const g = psGame({ away: "Chicago White Sox", home: "Houston Astros", league: 103, n: 2, awayWins: 2, homeWins: 0, gameDate: "2026-09-30T21:00:00Z", state: "Final" });
+  series.applySeries([row], [g]);
+  assert.equal(row.classList.contains("series-decided"), false);
+});
+
+test("applySeries: lopende serie → volgende game blijft zichtbaar", () => {
+  const { row } = psRow("phillies", "braves", "2026-10-02T18:00:00Z", "NLWC - Game 3");
+  const g = psGame({ n: 2, awayWins: 1, homeWins: 1, gameDate: "2026-10-01T18:00:00Z", state: "Final" });
+  series.applySeries([row], [g]);
+  assert.equal(row.classList.contains("series-decided"), false);
 });
