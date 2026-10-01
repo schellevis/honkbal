@@ -18,6 +18,7 @@
 </tbody>
 <thead id="hdr-today"><tr><th colspan="2">VANDAAG</th></tr></thead>
 <tbody id="day-today">
+<tr id="row-finished" data-away-team="cubs" data-home-team="reds"><th scope="row">03:10</th><td>Cubs @ Reds</td></tr>
 <tr id="row-running" data-away-team="dodgers" data-home-team="mariners"><th scope="row">04:10</th><td>Dodgers @ Mariners</td></tr>
 <tr id="row-future" data-away-team="rangers" data-home-team="rays"><th scope="row">18:10</th><td>Rangers @ Rays</td></tr>
 </tbody>
@@ -32,6 +33,7 @@ const setStart = (id, ms) => {
   document.getElementById(id).dataset.start = String(Math.floor(ms / 1000));
 };
 setStart("row-past", now - 8 * HOUR);      // gisteravond, ver buiten het grace-window
+setStart("row-finished", now - 3 * HOUR);  // binnen grace, maar volgens de API al Final
 setStart("row-running", now - 2 * HOUR);   // vermoedelijk nog bezig
 setStart("row-future", now + 6 * HOUR);    // vanavond
 document.getElementById("day-past").dataset.date = amsCalendarDate(new Date(now - 24 * HOUR));

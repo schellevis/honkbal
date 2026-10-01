@@ -690,6 +690,7 @@ p.foot a:hover { color: var(--c-accent); }
 
 .interest-hidden,
 .stale-hidden,
+.final-hidden,
 .series-decided,
 .day-hidden {
   display: none;

@@ -1,13 +1,14 @@
 import { test, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { installDom, restoreDom, makeRow } from "./dom-stub.js";
+import { installFetch, restoreFetch, lastCalls } from "./fetch-stub.js";
 
 let stale;
 beforeEach(async () => {
   installDom();
   stale = await import("../js/stale.js?" + Math.random());
 });
-afterEach(() => restoreDom());
+afterEach(() => { restoreFetch(); restoreDom(); });
 
 // Donderdag 30 juli 2026, 05:55 Amsterdam — het moment uit de bugmelding.
 const NOW = Date.parse("2026-07-30T05:55:00+02:00");
@@ -141,11 +142,67 @@ test("init prunet direct en werkt zonder schematabel", () => {
   const row = timedRow("brewers", "giants", "2026-07-29T21:45:00+02:00");
   scheduleTable([{ date: "2026-07-29", rows: [row] }]);
   // Zonder recheck-timer: init mag de eventloop niet openhouden in tests.
-  assert.equal(stale.init(globalThis.document, { recheckMs: 0 }), null);
+  assert.equal(stale.init(globalThis.document, { recheckMs: 0, finalRecheckMs: 0 }), null);
   // De echte klok staat ná 2026-07-29, dus de rij is verouderd.
   assert.equal(row.classList.contains("stale-hidden"), true);
 
   restoreDom();
   installDom();
-  assert.equal(stale.init(globalThis.document, { recheckMs: 0 }), null);
+  assert.equal(stale.init(globalThis.document, { recheckMs: 0, finalRecheckMs: 0 }), null);
+});
+
+// --- status-check binnen het grace-window ---
+function statsGame(away, home, startIso, state) {
+  return {
+    gameDate: new Date(Date.parse(startIso)).toISOString(),
+    status: { abstractGameState: state },
+    teams: { away: { team: { name: away } }, home: { team: { name: home } } },
+  };
+}
+
+test("hideFinished verbergt een al afgelopen game binnen het grace-window", async () => {
+  // Red Sox @ Yankees om 02:00, om 05:30 al klaar — zonder status-check stond hij tot 06:00.
+  const done = timedRow("red sox", "yankees", "2026-10-01T02:00:00+02:00");
+  const running = timedRow("cubs", "padres", "2026-10-01T04:00:00+02:00");
+  const later = timedRow("phillies", "braves", "2026-10-01T20:00:00+02:00");
+  scheduleTable([{ date: "2026-10-01", rows: [done, running, later] }]);
+  installFetch({ "statsapi.mlb.com": { ok: true, status: 200, payload: { dates: [{ games: [
+    statsGame("Boston Red Sox", "New York Yankees", "2026-10-01T02:05:00+02:00", "Final"),
+    statsGame("Chicago Cubs", "San Diego Padres", "2026-10-01T04:00:00+02:00", "Live"),
+  ] }] } } });
+
+  const n = await stale.hideFinished(globalThis.document, { nowMs: Date.parse("2026-10-01T05:30:00+02:00") });
+  assert.equal(n, 1);
+  assert.equal(done.classList.contains("final-hidden"), true);
+  assert.equal(running.classList.contains("final-hidden"), false);
+  assert.equal(later.classList.contains("final-hidden"), false);
+  assert.match(lastCalls()[0], /startDate=09\/30\/2026&endDate=10\/01\/2026/);
+});
+
+test("hideFinished: geen rijen binnen het grace-window → geen API-call", async () => {
+  scheduleTable([{ date: "2026-10-01", rows: [timedRow("phillies", "braves", "2026-10-01T20:00:00+02:00")] }]);
+  installFetch({});
+  assert.equal(await stale.hideFinished(globalThis.document, { nowMs: Date.parse("2026-10-01T10:00:00+02:00") }), 0);
+  assert.equal(lastCalls().length, 0);
+});
+
+test("hideFinished: doubleheader — alleen de afgelopen game verdwijnt", async () => {
+  const g1 = timedRow("mets", "phillies", "2026-07-30T19:05:00+02:00");
+  const g2 = timedRow("mets", "phillies", "2026-07-31T01:10:00+02:00");
+  scheduleTable([{ date: "2026-07-30", rows: [g1, g2] }]);
+  installFetch({ "statsapi.mlb.com": { ok: true, status: 200, payload: { dates: [{ games: [
+    statsGame("New York Mets", "Philadelphia Phillies", "2026-07-30T19:05:00+02:00", "Final"),
+    statsGame("New York Mets", "Philadelphia Phillies", "2026-07-31T01:10:00+02:00", "Live"),
+  ] }] } } });
+  await stale.hideFinished(globalThis.document, { nowMs: Date.parse("2026-07-30T22:30:00+02:00") });
+  assert.equal(g1.classList.contains("final-hidden"), true);
+  assert.equal(g2.classList.contains("final-hidden"), false);
+});
+
+test("hideFinished: netwerkfout laat de rij staan", async () => {
+  const row = timedRow("red sox", "yankees", "2026-10-01T02:00:00+02:00");
+  scheduleTable([{ date: "2026-10-01", rows: [row] }]);
+  installFetch({ "statsapi.mlb.com": new Error("offline") });
+  await stale.hideFinished(globalThis.document, { nowMs: Date.parse("2026-10-01T05:30:00+02:00") });
+  assert.equal(row.classList.contains("final-hidden"), false);
 });

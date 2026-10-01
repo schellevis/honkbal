@@ -657,9 +657,18 @@ blijft staan: tussen de nachtbuild (01:00) en de ochtendbuild (10:00) zit een ga
   live-sectie (`hidden`, §6.8). Onleesbare `data-start` of een dagblok zonder `data-date` →
   **niet** verbergen (het statische schema blijft leidend).
 - Dagkoppen zonder zichtbare rijen worden mee verborgen via dezelfde kop-synchronisatie als
-  §6.8/§6.9; die telt nu `hidden`, `interest-hidden` én `stale-hidden` mee.
+  §6.8/§6.9; die telt nu `hidden`, `interest-hidden`, `stale-hidden`, `final-hidden` én
+  `series-decided` (§6.12) mee.
 - Opnieuw wegen: bij het laden, bij "meer laden" (§6.6, MutationObserver) en elke 60 s, zodat een
   openstaande pagina een wedstrijd die over de grens gaat zonder reload laat verdwijnen.
+- **Status-check binnen het grace-window**: een wedstrijd die al afgelopen is maar nog binnen
+  start + grace valt (bv. start 02:00, klaar 05:00, grens 06:00) hoort niet meer in het schema —
+  de live-sectie (§6.8) zet zijn statische rij na afloop juist terug. Zijn er getimede rijen met
+  `start <= nu < start + grace`, dan doet `stale.js` één MLB-Stats-API-call
+  (`/schedule?sportId=1&startDate..endDate` over de NY-dagen van die rijen) en geeft rijen waarvan
+  de best passende game (zelfde teampaar, `gameDate` binnen 60 min; doubleheader: dichtstbij)
+  `abstractGameState == "Final"` heeft class `final-hidden`. Bij het laden en elke 5 min zolang
+  zulke rijen bestaan; geen zulke rijen → geen call; netwerkfout → niets wijzigen.
 - Een wedstrijd die ná het grace-window nog loopt (delay/extra innings) verdwijnt uit het
   statische schema maar blijft op de avond-tab zichtbaar in de live-sectie (§6.8), die op status
   in plaats van op starttijd werkt. Zonder JS gebeurt er niets en blijft de build-time output
