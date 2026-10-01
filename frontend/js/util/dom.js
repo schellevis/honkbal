@@ -9,8 +9,9 @@ export function escapeHtml(str) {
 
 // Klassen waarmee een module een schema-rij kan verbergen zonder row.hidden te claimen
 // (dat hoort bij de live-dedup, SPEC §6.8): interessefilter (§6.9), veroudering (§6.10) en
-// niet meer gespeelde games van een beslist serie (§6.12).
-const HIDDEN_CLASSES = ["interest-hidden", "stale-hidden", "series-decided"];
+// al afgelopen games binnen het grace-window (§6.10) en niet meer gespeelde games van een beslist
+// serie (§6.12).
+const HIDDEN_CLASSES = ["interest-hidden", "stale-hidden", "final-hidden", "series-decided"];
 
 export function isRowVisible(row) {
   if (row.hidden) return false;

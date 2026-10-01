@@ -22,6 +22,7 @@ const REQUIRED_SELECTORS = [
   "loadmore-msg",
   "interest-hidden",
   "stale-hidden",
+  "final-hidden",
   "day-hidden",
   "espn-off",
   "espn-nl-only",
