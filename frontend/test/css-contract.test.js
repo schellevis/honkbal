@@ -28,6 +28,8 @@ const REQUIRED_SELECTORS = [
   "div.espn",
   ".comm",
   "tv-option",
+  "ps-score-row",
+  "series-line",
 ];
 
 for (const sel of REQUIRED_SELECTORS) {

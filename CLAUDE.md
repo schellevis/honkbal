@@ -26,6 +26,7 @@ Logica-modules (geïmporteerd; exporteren `init`/functies, doen zelf geen self-i
 - `frontend/js/interest.js`: interessefilter-slider op schemapagina's (SPEC §6.9, bètafeature `interest`): verbergt rijen met een `data-interest`-percentiel onder de gekozen drempel (class `interest-hidden`); rijen zonder attribuut (postseason/all-star) blijven altijd zichtbaar en zonder gescoorde rijen komt er geen slider.
 - `frontend/js/stale.js`: laat het statische schema client-side verouderen (SPEC §6.10, staat voor iedereen aan): past het build-time filter van SPEC §3.2 opnieuw toe in de browser — getimede rijen op `data-start` (`nu >= start + 4u`), TBD-rijen op de `data-date` van hun `<tbody>` — en verbergt verouderde rijen met class `stale-hidden`. Nodig omdat de build-cadans een gat van 9 uur heeft (01:00 → 10:00): zonder dit staan de wedstrijden van gisteravond er 's ochtends nog.
 - `frontend/js/espn.js`: tv-gids-instellingen (SPEC §6.11, staat voor iedereen aan): zet body-klassen `espn-off`/`espn-nl-only` op basis van `localStorage`-keys `honkbal-espn-logos` (afwezig/`"1"` = aan) en `honkbal-espn-nl-only` (afwezig/`"0"` = uit); checkboxes op de instellingenpagina (`name="tv"`, direct opgeslagen); cross-tab via `storage`-events. Body-klassen i.p.v. per-rij JS, dus tail-rijen doen automatisch mee.
+- `frontend/js/series.js`: postseason-serie-stand in het statische schema (SPEC §6.12): één MLB-Stats-API-call over de `tr.ps-row`-rijen, zet label + stand `(x-y)` in de `.stp`-badge. Label/stand-logica in `util/series.js` (gedeeld met de live-/scorerij in `scores.js`, die de badge boven de teams toont).
 - `frontend/js/beta.js`: bètafeature-opslag (`honkbal-beta-features` in `localStorage`, SPEC §6.9); checkboxes op de instellingenpagina (`name="beta"`, direct opgeslagen).
 - `frontend/js/standings.js`: standen via MLB Stats API met seizoenjaar dat server-side in de HTML is ingebakken.
 - `frontend/js/loadmore.js`: haalt `<pagina>.tail.json` op (network-first) en plakt extra wedstrijdrijen aan de pagina.
@@ -35,7 +36,7 @@ Logica-modules (geïmporteerd; exporteren `init`/functies, doen zelf geen self-i
 
 Entry-modules (extern geladen via `<script type="module">`, **geen inline blob** — SPEC §6.1; self-init op `DOMContentLoaded`):
 
-- `scores-entry.js`, `standings-entry.js`, `settings-entry.js`, `live-entry.js`, `interest-entry.js`, `stale-entry.js`, `espn-entry.js`: importeren `init` uit de bijbehorende logica-module en starten die op (`live-entry.js` op pagina's met `page == 'avond'` én altijd op `index.html`, ook als de default-tab `alles` is; `interest-entry.js` alleen als de bètafeature `interest` aanstaat, SPEC §6.9; `stale-entry.js` en `espn-entry.js` op elke schemapagina, incl. team-pagina's).
+- `scores-entry.js`, `standings-entry.js`, `settings-entry.js`, `live-entry.js`, `interest-entry.js`, `stale-entry.js`, `espn-entry.js`, `series-entry.js`: importeren `init` uit de bijbehorende logica-module en starten die op (`live-entry.js` op pagina's met `page == 'avond'` én altijd op `index.html`, ook als de default-tab `alles` is; `interest-entry.js` alleen als de bètafeature `interest` aanstaat, SPEC §6.9; `stale-entry.js`, `espn-entry.js` en `series-entry.js` op elke schemapagina, incl. team-pagina's).
 - `favorites-init.js`: past favoriet-highlights toe en luistert op cross-tab `storage`-events.
 - `register-sw.js`: registreert `/sw.js` (scope `/`, `updateViaCache: "none"`) — vervangt de oude inline registratie (SPEC §6.5).
 
@@ -125,10 +126,10 @@ frontend/
     style.css                  # custom CSS
     bootstrap-grid.min.css     # grid-hulp
   js/
-    favorites.js  scores.js  standings.js  settings.js  loadmore.js  nav.js  live.js  interest.js  beta.js  stale.js  espn.js  sw.js
-    favorites-init.js  scores-entry.js  standings-entry.js  settings-entry.js  live-entry.js  interest-entry.js  stale-entry.js  espn-entry.js  # entry-modules (self-init)
+    favorites.js  scores.js  standings.js  settings.js  loadmore.js  nav.js  live.js  interest.js  beta.js  stale.js  espn.js  series.js  sw.js
+    favorites-init.js  scores-entry.js  standings-entry.js  settings-entry.js  live-entry.js  interest-entry.js  stale-entry.js  espn-entry.js  series-entry.js  # entry-modules (self-init)
     register-sw.js                                                             # SW-registratie (geen inline blob)
-    util/  diamond.js  dom.js  logo.js  teams.js  time.js
+    util/  diamond.js  dom.js  logo.js  series.js  teams.js  time.js
   static/
     favicon.ico  icon.png  manifest.json  404.html
     img/                       # team-logo's (PNG); img/espn/ = zenderlogo's tv-gids (licht + -dark)
