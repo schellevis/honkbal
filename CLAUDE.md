@@ -4,7 +4,7 @@ Werkhandleiding voor autonome agenten in deze repository. Normatief contract: `S
 
 ## Project in één zin
 
-Honkbal.net is een Python/uv static-site generator die MLB-wedstrijden in Nederlandse tijd rendert naar `docs/`; browser-side ES-modules verzorgen scores/standen live via de MLB Stats API, favorieten via `localStorage` en offline-gedrag via een service worker; CI bouwt en publiceert de statische output.
+Honkbal.net is een Python/uv static-site generator die MLB-wedstrijden in Nederlandse tijd rendert naar `docs/`; browser-side ES-modules verzorgen scores/standen live via de MLB Stats API, favorieten via `localStorage` en offline-gedrag via een service worker; CI bouwt en publiceert de statische output naar Vercel.
 
 ## Hoe het echt werkt
 
@@ -147,6 +147,7 @@ frontend/e2e/                  # Playwright (DOM, offline, SW)
   build.yml                    # volledige build + fetch + publicatie (cron + handmatig)
   rebuild.yml                  # render zonder fetch (handmatig, vereist data-cache)
   ci.yml                       # PR-gate: volledige suite (ruff + pytest + node:test + Playwright)
+deploy/vercel/config.json      # Vercel Build Output API v3: routes/headers (geen account-gegevens)
 ```
 
 ## CI/CD
@@ -157,11 +158,11 @@ Cron-cadans: in het seizoen 01:00, 10:00, 15:00 en 18:00 NL-tijd; offseason alle
 
 1. **gate-job** (lichte deploy-gate): `uv sync --frozen` -> `ruff check` -> `pytest -q`. Geen node:test/Playwright — die draaien op push/PR in `ci.yml`; een cron-deploy gebruikt dezelfde commit met alleen verse data, en de render-stap valideert config en faalt luid. Blokkeert de build-job.
 2. **build-job**: data-cache herstellen -> zelfherstel ESPN watch-apiKey (alleen als de vorige fetch niet op bron `espn` draaide: `npm run discover:espn`, faalt zacht) -> `honkbal fetch` -> `version.txt` schrijven -> `honkbal render` -> data-cache opslaan -> publicatie-artifact.
-3. **deploy-job**: GitHub Pages-deploy -> bunny.net-cache purgen (honkbal.net draait achter een bunny-pull-zone vóór Pages; secrets `BUNNY_API_KEY` + `BUNNY_PULLZONE_ID`, faalt zacht met waarschuwing als ze ontbreken of de purge mislukt).
+3. **deploy-job** (GitHub-environment `production`, beperkt tot `main`): Vercel-productiedeploy -> bunny.net-cache purgen. Vercel bouwt zelf niets: de job zet `docs/` als Build Output API v3 in `.vercel/output/static` met routes/headers uit `deploy/vercel/config.json` (404-fallback, `immutable` op `/js/v/*`) en draait `vercel deploy --prebuilt --prod` (CLI-versie gepind). Secrets `VERCEL_TOKEN` + `VERCEL_ORG_ID` + `VERCEL_PROJECT_ID` (ontbreken ze → deploy faalt luid); CLI-output gaat niet naar het publieke log. Het Vercel-project heeft bewust géén Git-koppeling (anders bouwt Vercel bij elke push/fork-PR zelf). honkbal.net draait achter een bunny-pull-zone met het Vercel-productiedomein als origin; purge via secrets `BUNNY_API_KEY` + `BUNNY_PULLZONE_ID`, faalt zacht met waarschuwing als ze ontbreken of de purge mislukt.
 
 ### `rebuild.yml` — geen fetch (handmatig)
 
-Zelfde lichte gate-job. Build-job herstelt de data-cache (faalt luid als die ontbreekt) -> `honkbal render` -> publicatie-artifact; deploy-job purget daarna ook de bunny.net-cache. Bedoeld voor layout-/template-fixes zonder nieuwe data.
+Zelfde lichte gate-job. Build-job herstelt de data-cache (faalt luid als die ontbreekt) -> `honkbal render` -> publicatie-artifact; deploy-job deployt naar Vercel en purget daarna de bunny.net-cache (zelfde job als `build.yml`). Bedoeld voor layout-/template-fixes zonder nieuwe data.
 
 ### `ci.yml` — volledige PR-gate
 
@@ -239,6 +240,7 @@ Controleer ook (tv-gids, SPEC §3.3): de ESPN watch-apiKey herstelt zichzelf (`b
 - **`localStorage`-score-cache is versiegebonden.** Bij wijzigingen in de datashape van `scores.js` de cacheversie in dat bestand ophogen, anders werken bestaande gebruikers met een incompatibele payload.
 - **`config/feeds.py` (team-mapping + `ALLSTAR_FEED_ID`) is live gevalideerd op 2026-06-22** (30/30 teams + all-star, 0 mismatches). De feed-id's kunnen per seizoen veranderen; hervalideer met een live `discover_feeds`-run over range 105..161 bij twijfel of feed-wijzigingen.
 - **`rebuild.yml` faalt luid** als er geen data-cache in Actions bestaat. Draai eerst `build.yml`.
+- **Vercel-koppeling hoort niet in de repo.** `.vercel/` staat in `.gitignore`; org-/project-ID en token alleen als secrets in de `production`-environment. `deploy/vercel/config.json` bevat alleen routes/headers, geen account-gegevens.
 - **`HONKBAL_NO_FETCH=1`** slaat fetch over en behoudt `.data/` ongewijzigd — handig bij lokale render-only iteraties.
 - **`next_year` wordt legacy berekend** (voor de rollover, SPEC §4.3) — bewuste eigenaarsbeslissing, geen bug.
 - **Enrichment faalt nooit de build.** Standings-fetch (`fetch/standings.py`) en odds-load (`fetch/playoff_odds.py`) falen zacht: ontbreken ze, dan dragen alleen de overige signalen bij en blijft `enrichment` evt. `None`. Enrichment draait **alleen vóór `season.windows.ps`**; in de postseason wordt het overgeslagen.

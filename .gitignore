@@ -26,3 +26,6 @@ playwright-report/
 .env
 .claude/settings.local.json
 .playwright-mcp/
+
+# Vercel CLI (lokale koppeling/build-output; IDs horen in CI-secrets, niet in de repo)
+.vercel/
