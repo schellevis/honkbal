@@ -94,7 +94,7 @@ jobs:
           key: honkbal-data-${{ github.run_id }}
 
       - name: Upload site artifact
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: site
           path: docs
@@ -112,15 +112,16 @@ jobs:
           sparse-checkout: deploy/vercel
           sparse-checkout-cone-mode: false
 
-      - uses: actions/download-artifact@v5
+      - uses: actions/download-artifact@v8
         with:
           name: site
           path: docs
 
       # Vercel bouwt niets zelf: CI levert kant-en-klare Build Output API v3 aan
       # (.vercel/output/static = docs/, routes/headers uit deploy/vercel/config.json).
-      # Publieke repo: token en IDs alleen via secrets; output van de CLI (deployment-URL's
-      # met team-slug) gaat niet naar het publieke log.
+      # Publieke repo: token en IDs alleen via secrets. De CLI schrijft deployment-URL's (met
+      # team-slug) naar stdout én stderr; die gaan naar een logbestand en alleen bij een fout
+      # (staart) naar het publieke log.
       - name: Deploy to Vercel (production)
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
@@ -134,7 +135,12 @@ jobs:
           mkdir -p .vercel/output
           cp -r docs .vercel/output/static
           cp deploy/vercel/config.json .vercel/output/config.json
-          npx --yes vercel@62.1.0 deploy --prebuilt --prod --yes --token "$VERCEL_TOKEN" > /dev/null
+          if ! npx --yes vercel@62.1.0 deploy --prebuilt --prod --yes --token "$VERCEL_TOKEN" \
+               > "$RUNNER_TEMP/vercel.log" 2>&1; then
+            echo "::error::Vercel-deploy mislukt"
+            tail -n 20 "$RUNNER_TEMP/vercel.log"
+            exit 1
+          fi
           echo "Vercel-productiedeploy geslaagd"
 
       # bunny.net (CDN vóór Vercel op honkbal.net, origin = Vercel-productiedomein) cachet de
