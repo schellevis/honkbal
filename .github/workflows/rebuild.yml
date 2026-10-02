@@ -5,11 +5,9 @@ on:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
-  group: pages
+  group: deploy
   cancel-in-progress: true
 
 jobs:
@@ -56,22 +54,53 @@ jobs:
       - name: Render site → docs/
         run: uv run honkbal render --out docs --data-dir .data
 
-      - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v5
+      - name: Upload site artifact
+        uses: actions/upload-artifact@v5
         with:
+          name: site
           path: docs
+          retention-days: 1
 
   deploy:
     runs-on: ubuntu-latest
     needs: build
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+    # Secrets horen in deze environment; beperk hem in de repo-instellingen tot branch `main`,
+    # zodat een workflow_dispatch op een andere branch niet naar productie kan deployen.
+    environment: production
     steps:
-      - id: deployment
-        uses: actions/deploy-pages@v5
+      - uses: actions/checkout@v5
+        with:
+          sparse-checkout: deploy/vercel
+          sparse-checkout-cone-mode: false
 
-      # Zelfde purge als build.yml: bunny.net-cache legen na een geslaagde deploy (zacht falen).
+      - uses: actions/download-artifact@v5
+        with:
+          name: site
+          path: docs
+
+      # Vercel bouwt niets zelf: CI levert kant-en-klare Build Output API v3 aan
+      # (.vercel/output/static = docs/, routes/headers uit deploy/vercel/config.json).
+      # Publieke repo: token en IDs alleen via secrets; output van de CLI (deployment-URL's
+      # met team-slug) gaat niet naar het publieke log.
+      - name: Deploy to Vercel (production)
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: |
+          if [ -z "$VERCEL_TOKEN" ] || [ -z "$VERCEL_ORG_ID" ] || [ -z "$VERCEL_PROJECT_ID" ]; then
+            echo "::error::VERCEL_TOKEN/VERCEL_ORG_ID/VERCEL_PROJECT_ID niet gezet — geen deploy"
+            exit 1
+          fi
+          mkdir -p .vercel/output
+          cp -r docs .vercel/output/static
+          cp deploy/vercel/config.json .vercel/output/config.json
+          npx --yes vercel@60.1.3 deploy --prebuilt --prod --yes --token "$VERCEL_TOKEN" > /dev/null
+          echo "Vercel-productiedeploy geslaagd"
+
+      # bunny.net (CDN vóór Vercel op honkbal.net, origin = Vercel-productiedomein) cachet de
+      # site; zonder purge blijft een verse deploy tot de TTL oud. Secrets: BUNNY_API_KEY +
+      # BUNNY_PULLZONE_ID. Ontbreken ze, of faalt de purge, dan alleen een waarschuwing.
       - name: Purge bunny.net-cache
         env:
           BUNNY_API_KEY: ${{ secrets.BUNNY_API_KEY }}

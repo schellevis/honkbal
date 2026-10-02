@@ -730,7 +730,13 @@ Stats API (`/schedule`, gewone `hydrate=linescore,team`-payload; geen extra hydr
   niet stil maar logt duidelijk.
 - **[NEW] CI-validatie:** config-datumvalidatie (§4.3) en de acceptatietests (§12) draaien als
   gate vóór publicatie.
-- **[NEW] CDN-purge:** honkbal.net draait achter een bunny.net-pull-zone vóór GitHub Pages; na
+- **[NEW] Hosting:** Vercel, als kant-en-klare statische output (Build Output API v3, geen build
+  op Vercel). Routes/headers in `deploy/vercel/config.json`: onbekende paden → `404.html`
+  (status 404), `/js/v/*` krijgt `cache-control: public, max-age=31536000, immutable` (URL is
+  per `asset_version` uniek, §7); overige bestanden houden de Vercel-default (revalideren).
+  Deploy-secrets (`VERCEL_TOKEN`/`VERCEL_ORG_ID`/`VERCEL_PROJECT_ID`) staan alleen in de
+  GitHub-environment `production`; ontbreken ze, dan faalt de deploy luid.
+- **[NEW] CDN-purge:** honkbal.net draait achter een bunny.net-pull-zone vóór Vercel; na
   elke geslaagde deploy (build- én rebuild-workflow) purget CI de hele pull zone via de
   bunny-API (secrets `BUNNY_API_KEY`/`BUNNY_PULLZONE_ID`). Faalt zacht: ontbrekende secrets of
   een mislukte purge geven een waarschuwing, de cache verloopt dan volgens TTL.
