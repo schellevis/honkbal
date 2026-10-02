@@ -95,7 +95,7 @@ jobs:
           mkdir -p .vercel/output
           cp -r docs .vercel/output/static
           cp deploy/vercel/config.json .vercel/output/config.json
-          npx --yes vercel@60.1.3 deploy --prebuilt --prod --yes --token "$VERCEL_TOKEN" > /dev/null
+          npx --yes vercel@62.1.0 deploy --prebuilt --prod --yes --token "$VERCEL_TOKEN" > /dev/null
           echo "Vercel-productiedeploy geslaagd"
 
       # bunny.net (CDN vóór Vercel op honkbal.net, origin = Vercel-productiedomein) cachet de
