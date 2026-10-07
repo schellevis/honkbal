@@ -81,7 +81,7 @@ Gerenderde statische bestanden in `docs/`:
 | `offline.html` | Skeleton-fallback voor service worker |
 | `404.html` | Statisch |
 
-Topnavigatie: **schema** → `avond.html`, **scores** → `scores.html`, **standen** →
+Topnavigatie: **schema** → `/` (de voorpagina, met de default-tab van §5.1), **scores** → `scores.html`, **standen** →
 `standings.html`, **instellingen** (tandwiel) → `settings.html`. Sub-pills op schema-pagina's:
 **avond / ochtend / nacht / alles**. Daarboven een team-`<select>` (alfabetisch) die naar
 `<team>.html` navigeert. H1 = `⚾ honkbal.net`; op scores een status-indicator (refresh-icoon +
@@ -569,7 +569,7 @@ bezig zijn, inclusief scores, en hernoemt het navigatielabel van de avond-tab cl
 **"nu + avond"**. De sectie staat voor **iedereen** aan (geen opt-in; was tot juli 2026 de
 bètafeature `live`, §6.9). Server-side blijft het label "avond": zonder JS draait de module niet
 en is er ook geen live-sectie. Alleen de tab in de schedule-subnav (`.nav-pills`) wordt hernoemd;
-de topnavigatielink "schema" wijst óók naar `/avond.html` maar behoudt zijn label:
+de topnavigatielink "schema" (→ `/`) behoudt zijn label:
 - Op pagina's met `page == 'avond'` én altijd op `index.html`, ongeacht de default-tab (§5.1): ook
   na het reguliere seizoen en in de postseason, als de voorpagina `alles` toont.
 - ES-module `live.js` + entry `live-entry.js` (zelfde patroon als §6.1/§6.2: geen inline blobs).

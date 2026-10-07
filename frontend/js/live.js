@@ -41,8 +41,8 @@ export function nextPollDelay(windows, nowMs) {
 
 // Server-side heet de avond-tab gewoon "avond"; zodra deze module draait wordt het label
 // client-side "nu + avond" (SPEC §6.8) — zonder JS is er ook geen live-sectie.
-// Alleen de tab in de schedule-subnav (.nav-pills): de topnavigatielink "schema" wijst óók
-// naar /avond.html en moet "schema" blijven heten.
+// Alleen de tab in de schedule-subnav (.nav-pills): de topnavigatielink "schema" moet
+// "schema" blijven heten.
 export function applyNuAvondLabel(doc) {
   if (!doc.querySelectorAll) return;
   for (const subnav of doc.querySelectorAll(".nav-pills")) {
